@@ -6,10 +6,10 @@ The project is mainly referenced from:
 2. https://www.phash.org/releases/pHash-0.9.6.tar.gz
 3. https://github.com/starkdg/phash
 
-The audiophash, cimgffmpeg, ph_fft and win folders are composed by the pHash git.
-CIMG.h is from the CIMG official website (see https://cimg.eu/).
-The pHash.h and pHash.cpp files are from pHash-0.9.6.tar.gz because I need pthread multi-thread support.
-Bmbhash is modified from starkdg-phash.
+The audiophash, cimgffmpeg, ph_fft and win folders are composed by the pHash git.<br>
+CIMG.h is from the CIMG official website (see https://cimg.eu/).<br>
+The pHash.h and pHash.cpp files are from pHash-0.9.6.tar.gz because I need pthread multi-thread support.<br>
+Bmbhash is modified from starkdg-phash.<br>
 
 <br/>
 
