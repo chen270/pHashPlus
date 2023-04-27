@@ -35,6 +35,12 @@ int ph_bmb_imagehash(const char *file, BMBHash &ret_hash) {
     CImg<float> img;
     switch (src.spectrum()) {
         case 4:
+        {
+            CImg<> rgb = src.get_shared_channels(0, 2);
+            img = rgb.get_RGBtoYUV();
+            img.channel(0);
+            break;
+        }
         case 3:  // from RGB
             img = src.get_RGBtoYUV();
             img.channel(0);
