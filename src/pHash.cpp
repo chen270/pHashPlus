@@ -271,32 +271,40 @@ int _ph_image_digest(const CImg<uint8_t> &img,double sigma, double gamma,Digest 
     
     int result = EXIT_FAILURE;
     CImg<uint8_t> graysc;
-    if (img.spectrum() >= 3){
-	graysc = img.get_RGBtoYCbCr().channel(0);
+    if (img.spectrum() > 3)
+    {
+        CImg<> rgb = img.get_shared_channels(0, 2);
+        graysc = rgb.RGBtoYCbCr().channel(0);
     }
-    else if (img.spectrum() == 1){
-	graysc = img;
+    else if (img.spectrum() == 3)
+    {
+        graysc = img.get_RGBtoYCbCr().channel(0);
     }
-    else {
-	return result;
+    else if (img.spectrum() == 1)
+    {
+        graysc = img;
     }
-	
- 
+    else
+    {
+        return result;
+    }
+
+
     graysc.blur((float)sigma);
- 
+
     (graysc/graysc.max()).pow(gamma);
-     
+
     Projections projs;
     if (ph_radon_projections(graysc,N,projs) < 0)
 	goto cleanup;
- 
+
     Features features;
     if (ph_feature_vector(projs,features) < 0)
 	goto cleanup;
-    
+
     if (ph_dct(features,digest) < 0)
         goto cleanup;
- 
+
     result = EXIT_SUCCESS;
 
 cleanup:
