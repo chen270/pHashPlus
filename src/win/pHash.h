@@ -37,6 +37,10 @@
 #define hfree(x)   HeapFree(GetProcessHeap(), NULL, x); x=NULL
 #define sfree(x)   free(x); x=NULL
 #define cfree(x)   HeapFree(GetProcessHeap(), NULL, x); x=NULL
+
+// Avoiding crashes
+#define free(x)   HeapFree(GetProcessHeap(), NULL, x); x=NULL 
+
 #define strdup _strdup
 //#define snprintf sprintf_s
 
