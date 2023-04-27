@@ -132,35 +132,7 @@ int ph_feature_vector(const Projections &projs, Features &fv)
     fv.size = N;
     if (!fv.features)
 	return EXIT_FAILURE;
-#if 1
-    double* feat_v = fv.features;
-    double sum = 0.0;
-	double sum_sqd = 0.0;
-    for (int k = 0; k < N; k++) {
-        double line_sum = 0.0;
-        double line_sum_sqd = 0.0;
-        int nb_pixels = nb_perline[k];
-		if (nb_pixels < 0.001 && nb_pixels > -0.001)
-			continue;
-        for (int i = 0; i < D; i++) {
-            line_sum += projection_map(k, i);
-            line_sum_sqd += projection_map(k, i) * projection_map(k, i);
-        }
-        
-		if (k == 22)
-		{
-			int c = 1;
-		}
-		
-		double tmp = (line_sum_sqd / nb_pixels) - (line_sum * line_sum) / (nb_pixels * nb_pixels);
-		
-		feat_v[k] = tmp;
-        sum += feat_v[k];
-        sum_sqd += feat_v[k] * feat_v[k];
-    }
-    double mean = sum / N;
-    double var = sqrt((sum_sqd / N) - (sum * sum) / (N * N));
-#else
+
     double *feat_v = fv.features;
     double sum = 0.0;
     double sum_sqd = 0.0;
@@ -168,6 +140,11 @@ int ph_feature_vector(const Projections &projs, Features &fv)
 	double line_sum = 0.0;
         double line_sum_sqd = 0.0;
         int nb_pixels = nb_perline[k];
+		if (nb_pixels == 0)
+		{
+			feat_v[k] = 0.0;
+			continue;
+		}
 	for (int i=0;i<D;i++){
 	    line_sum += projection_map(k,i);
     	    line_sum_sqd += projection_map(k,i)*projection_map(k,i);
@@ -178,7 +155,6 @@ int ph_feature_vector(const Projections &projs, Features &fv)
     }
     double mean = sum/N;
     double var  = sqrt((sum_sqd/N) - (sum*sum)/(N*N));
-#endif
     for (int i=0;i<N;i++){
     	feat_v[i] = (feat_v[i] - mean)/var;
     }

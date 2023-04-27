@@ -164,6 +164,11 @@ int ph_feature_vector(const Projections &projs, Features &fv)
 	double line_sum = 0.0;
         double line_sum_sqd = 0.0;
         int nb_pixels = nb_perline[k];
+        if (nb_pixels == 0)
+        {
+            feat_v[k] = 0.0;
+            continue;
+        }
 	for (int i=0;i<D;i++){
 	    line_sum += projection_map(k,i);
     	    line_sum_sqd += projection_map(k,i)*projection_map(k,i);
