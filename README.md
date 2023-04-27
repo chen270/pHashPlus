@@ -11,3 +11,9 @@ CIMG.h is from the CIMG official website.
 The pHash.h and pHash.cpp files are from pHash-0.9.6.tar.gz because I need pthread multi-thread support.
 Bmbhash is modified from starkdg-phash.
 
+<br/>
+
+Features of this project:
+1. Adapted mingw compilation, added the relevant mingw adaptation interface.
+2. Add 4-channel color support, the original project will crash.
+3. Fix some bugs in the official pHash project.
