@@ -32,7 +32,6 @@
 #include "pHash.h"
 #include "dirent.h"
 #include <utility>
-#include <iostream>
 
 #ifdef HAVE_VIDEO_HASH
 #include "cimgffmpeg.h"
@@ -65,9 +64,7 @@ int ph_radon_projections(const CImg<uint8_t> &img,int N,Projections &projs){
     int y_off = (int)std::floor(y_center + ROUNDING_FACTOR(y_center));
 
     projs.R = new CImg<uint8_t>(N,D,1,1,0);
-    //projs.nb_pix_perline = (int*)calloc(N, sizeof(int));
-	std::cout << "projs.nb_pix_perline0 = " << projs.nb_pix_perline << std::endl;
-	//projs.nb_pix_perline = new int[N] {};
+    projs.nb_pix_perline = (int*)calloc(N,sizeof(int));
 
     if (!projs.R || !projs.nb_pix_perline)
 	return EXIT_FAILURE;
@@ -106,7 +103,6 @@ int ph_radon_projections(const CImg<uint8_t> &img,int N,Projections &projs){
 	    }
             if ((y_off - yd >= 0)&&(y_off - yd<width)&&(2*y_off-x>=0)&&(2*y_off-x<height)&&(k!=3*N/4)){
 		        *ptr_radon_map->data(k-j,x) = img(-yd+y_off,-(x-y_off)+y_off);
-				//std::cout << "k - j = " << k - j << std::endl;
                 nb_per_line[k-j] += 1;
 	    }
             
@@ -127,8 +123,7 @@ int ph_feature_vector(const Projections &projs, Features &fv)
     int N = projs.size;
     int D = projection_map.height();
 
-    //fv.features = (double*)malloc(N * sizeof(double));
-	fv.features = new double[N] {};
+    fv.features = (double*)malloc(N*sizeof(double));
     fv.size = N;
     if (!fv.features)
 	return EXIT_FAILURE;
@@ -140,11 +135,11 @@ int ph_feature_vector(const Projections &projs, Features &fv)
 	double line_sum = 0.0;
         double line_sum_sqd = 0.0;
         int nb_pixels = nb_perline[k];
-		if (nb_pixels == 0)
-		{
-			feat_v[k] = 0.0;
-			continue;
-		}
+        if (nb_pixels == 0)
+        {
+            feat_v[k] = 0.0;
+            continue;
+        }
 	for (int i=0;i<D;i++){
 	    line_sum += projection_map(k,i);
     	    line_sum_sqd += projection_map(k,i)*projection_map(k,i);
@@ -155,6 +150,7 @@ int ph_feature_vector(const Projections &projs, Features &fv)
     }
     double mean = sum/N;
     double var  = sqrt((sum_sqd/N) - (sum*sum)/(N*N));
+
     for (int i=0;i<N;i++){
     	feat_v[i] = (feat_v[i] - mean)/var;
     }
@@ -167,8 +163,7 @@ int ph_dct(const Features &fv,Digest &digest)
     int N = fv.size;
     const int nb_coeffs = 40;
 
-    //digest.coeffs = (uint8_t*)malloc(nb_coeffs * sizeof(uint8_t));
-	digest.coeffs = new uint8_t[nb_coeffs]{};
+    digest.coeffs = (uint8_t*)malloc(nb_coeffs*sizeof(uint8_t));
     if (!digest.coeffs)
 	return EXIT_FAILURE;
 
@@ -248,85 +243,48 @@ int ph_crosscorr(const Digest &x,const Digest &y,double &pcc,double threshold){
 #ifdef max
 #undef max
 #endif
-#include <iostream>
-
-void tt_test()
-{
-	int N = 90;
-    Projections projs;
-    projs.nb_pix_perline = (int*)calloc(N, sizeof(int));
-	free(projs.nb_pix_perline);
-	projs.nb_pix_perline = NULL;
-}
-
 
 __declspec(dllexport)
-int ph_image_digest(const CImg<uint8_t>& img, double sigma, double gamma, Digest& digest, int N) {
-
-	tt_test();
-
-	int result = EXIT_FAILURE;
-	CImg<uint8_t> graysc;
+int ph_image_digest(const CImg<uint8_t> &img,double sigma, double gamma,Digest &digest, int N){
+    
+    int result = EXIT_FAILURE;
+    CImg<uint8_t> graysc;
 	if (img.spectrum() > 3)
     {
-        CImg<> rgb = img.get_shared_channels(0, 2);
-        graysc = rgb.RGBtoYCbCr().channel(0);
+    CImg<> rgb = img.get_shared_channels(0, 2);
+    graysc = rgb.RGBtoYCbCr().channel(0);
     }
 	else if (img.spectrum() == 3) {
-		graysc = img.get_RGBtoYCbCr().channel(0);
-	}
+	graysc = img.get_RGBtoYCbCr().channel(0);
+    }
 	else if (img.spectrum() == 1) {
-		graysc = img;
-	}
-	else {
-		return result;
-	}
+	graysc = img;
+    }
+    else {
+	return result;
+    }
+	
+ 
+    graysc.blur((float)sigma);
+ 
+    (graysc/graysc.max()).pow(gamma);
+     
+    Projections projs;
+    if (ph_radon_projections(graysc,N,projs) < 0)
+	goto cleanup;
+ 
+    Features features;
+    if (ph_feature_vector(projs,features) < 0)
+	goto cleanup;
 
+    if (ph_dct(features,digest) < 0)
+        goto cleanup;
 
-	graysc.blur((float)sigma);
-
-	(graysc / graysc.max()).pow(gamma);
-
-	Projections projs;
-	projs.nb_pix_perline = (int*)calloc(N, sizeof(int));
-
-	//if (ph_radon_projections(graysc, N, projs) < 0)
-	//	goto cleanup;
-
-	//for (int i = 0; i < N; ++i)
-	//{
-	//	std::cout << "get projs.nb_pix_perline[" << i <<"] = " << projs.nb_pix_perline[i] << std::endl;
-	//}
-
- //   Features features;
- //   if (ph_feature_vector(projs,features) < 0)
-	//goto cleanup;
- //   
- //   for (int i = 0; i < features.size; ++i)
- //   {
- //       std::cout << "get features.features[" << i << "] = " << features.features[i] << std::endl;
- //   }
-
- //   if (ph_dct(features,digest) < 0)
- //       goto cleanup;
- //
- //   for (int i = 0; i < N; ++i)
- //   {
- //       std::cout << "get projs.nb_pix_perline[" << i << "] = " << projs.nb_pix_perline[i] << std::endl;
- //   }
-
-
-    //result = EXIT_SUCCESS;
+    result = EXIT_SUCCESS;
 
 cleanup:
-	std::cout << "projs.nb_pix_perline1 = " << projs.nb_pix_perline << std::endl;
     free(projs.nb_pix_perline);
-	//delete[] projs.nb_pix_perline;
-	projs.nb_pix_perline = NULL;
-
-
-    //free(features.features);
-	//delete[] features.features;
+    free(features.features);
 
     delete projs.R;
     return result;
