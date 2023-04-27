@@ -312,6 +312,13 @@ static CImg<float>* ph_dct_matrix(const int N);
  */
 int ph_dct_imagehash(const char* file,ulong64 &hash);
 
+/*! /brief compute dct robust image hash
+ *  /param img - CImg object of source image
+ *  /param hash of type ulong64 (must be 64-bit variable)
+ *  /return int value - -1 for failure, 1 for success
+ */
+int _ph_dct_imagehash(const CImg<uint8_t> &img, ulong64 &hash);
+
 int ph_bmb_imagehash(const char *file, uint8_t method, BinHash **ret_hash);
 #endif
 
@@ -355,6 +362,15 @@ DP** ph_read_imagehashes(const char *dirname,int capacity, int &count);
 *   /return uint8_t array
 **/
 uint8_t* ph_mh_imagehash(const char *filename, int &N, float alpha=2.0f, float lvl = 1.0f);
+
+/** /brief create MH image hash for filename image
+*   /param img - CImg object of source image
+*   /param N - (out) int value for length of image hash returned
+*   /param alpha - int scale factor for marr wavelet (default=2)
+*   /param lvl   - int level of scale factor (default = 1)
+*   /return uint8_t array
+**/
+uint8_t *_ph_mh_imagehash(const CImg<uint8_t> &img, int &N, float alpha=2.0f, float lvl = 1.0f);
 #endif
 /** /brief count number bits set in given byte
 *   /param val - uint8_t byte value

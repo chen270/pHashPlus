@@ -351,6 +351,45 @@ CImg<float>* ph_dct_matrix(const int N){
 }
 
 __declspec(dllexport)
+int _ph_dct_imagehash(const CImg<uint8_t> &src, ulong64 &hash){
+    if (src.is_empty()) {
+        return -1;
+    }
+    CImg<float> meanfilter(7,7,1,1,1);
+    CImg<float> img;
+	if (src.spectrum() > 3){
+        CImg<> rgb = src.get_shared_channels(0, 2);
+        img = rgb.RGBtoYCbCr().channel(0).get_convolve(meanfilter);
+    } else if (src.spectrum() == 3){
+        img = src.get_RGBtoYCbCr().channel(0).get_convolve(meanfilter);
+    } else if (img.spectrum() ==1){
+	img = src.get_convolve(meanfilter);
+    }
+
+    img.resize(32,32);
+    CImg<float> *C  = ph_dct_matrix(32);
+    CImg<float> Ctransp = C->get_transpose();
+
+    CImg<float> dctImage = (*C)*img*Ctransp;
+
+    CImg<float> subsec = dctImage.crop(1,1,8,8).unroll('x');;
+
+    float median = subsec.median();
+    ulong64 one = 0x0000000000000001;
+    hash = 0x0000000000000000;
+    for (int i=0;i< 64;i++){
+	float current = subsec(i);
+        if (current > median)
+	    hash |= one;
+	one = one << 1;
+    }
+
+    delete C;
+
+    return 0;
+}
+
+__declspec(dllexport)
 int ph_dct_imagehash(const char* file,ulong64 &hash){
 
     if (!file){
@@ -607,6 +646,71 @@ CImg<float>* GetMHKernel(float alpha, float level){
 	}
     return pkernel;
 }
+
+__declspec(dllexport)
+uint8_t* _ph_mh_imagehash(const CImg<uint8_t> &src, int &N,float alpha, float lvl){
+    if (src.is_empty()) {
+        return NULL;
+    }
+    uint8_t *hash = (uint8_t*)malloc(72*sizeof(uint8_t));
+	if (!hash){
+        return NULL;
+	}
+    N = 72;
+
+    CImg<uint8_t> img;
+	if (img.spectrum() > 3)
+	{
+		CImg<> rgb = src.get_shared_channels(0, 2);
+		img = rgb.RGBtoYCbCr().channel(0).blur(1.0).resize(512, 512, 1, 1, 5).get_equalize(256);
+	} else if (img.spectrum() == 3){
+		img = src.get_RGBtoYCbCr().channel(0).blur(1.0).resize(512, 512, 1, 1, 5).get_equalize(256);
+    } else{
+		img = src.get_channel(0).blur(1.0).resize(512,512,1,1,5).get_equalize(256);
+    }
+    // src.clear();
+
+    CImg<float> *pMHKernel = GetMHKernel(alpha,lvl);
+
+    CImg<float> fresp =  img.get_correlate(*pMHKernel);
+    img.clear();
+    fresp.normalize(0,1.0);
+    CImg<float> blocks(31,31,1,1,0);
+	for (int rindex=0;rindex < 31;rindex++){
+		for (int cindex=0;cindex < 31;cindex++){
+			blocks(rindex,cindex) = fresp.get_crop(rindex*16,cindex*16,rindex*16+16-1,cindex*16+16-1).sum();
+		}
+	}
+
+    int hash_index;
+    int nb_ones = 0, nb_zeros = 0;
+    int bit_index = 0;
+    unsigned char hashbyte = 0;
+    for (int rindex=0;rindex < 31-2;rindex+=4){
+		CImg<float> subsec;
+		for (int cindex=0;cindex < 31-2;cindex+=4){
+			subsec = blocks.get_crop(cindex,rindex, cindex+2, rindex+2).unroll('x');
+			float ave = subsec.mean();
+			cimg_forX(subsec, I){
+				hashbyte <<= 1;
+				if (subsec(I) > ave){
+					hashbyte |= 0x01;
+					nb_ones++;
+				} else {
+					nb_zeros++;
+				}
+				bit_index++;
+				if ((bit_index%8) == 0){
+					hash_index = (int)(bit_index/8) - 1; 
+					hash[hash_index] = hashbyte;
+					hashbyte = 0x00;
+				}
+			}
+		}
+	}
+    return hash;
+}
+
 __declspec(dllexport)
 uint8_t* ph_mh_imagehash(const char *filename, int &N,float alpha, float lvl){
     if (filename == NULL){
