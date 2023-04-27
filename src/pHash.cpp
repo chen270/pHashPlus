@@ -386,13 +386,12 @@ int ph_dct_imagehash(const char* file,ulong64 &hash){
     }
     CImg<float> meanfilter(7,7,1,1,1);
     CImg<float> img;
-    if (src.spectrum() == 3){
+
+    if (src.spectrum() > 3){
+        CImg<> rgb = src.get_shared_channels(0, 2);
+        img = rgb.RGBtoYCbCr().channel(0).get_convolve(meanfilter);
+    } else if (src.spectrum() == 3){
         img = src.RGBtoYCbCr().channel(0).get_convolve(meanfilter);
-    } else if (src.spectrum() == 4){
-	int width = img.width();
-        int height = img.height();
-        int depth = img.depth();
-	img = src.crop(0,0,0,0,width-1,height-1,depth-1,2).RGBtoYCbCr().channel(0).get_convolve(meanfilter);
     } else {
 	img = src.channel(0).get_convolve(meanfilter);
     }
@@ -875,7 +874,11 @@ uint8_t* ph_mh_imagehash(const char *filename, int &N,float alpha, float lvl){
     CImg<uint8_t> src(filename);
     CImg<uint8_t> img;
 
-    if (src.spectrum() == 3){
+    if (src.spectrum() > 3)
+    {
+        CImg<> rgb = src.get_shared_channels(0, 2);
+        img = rgb.get_RGBtoYCbCr().channel(0).blur(1.0).resize(512,512,1,1,5).get_equalize(256);
+    } else if (src.spectrum() == 3){
 	img = src.get_RGBtoYCbCr().channel(0).blur(1.0).resize(512,512,1,1,5).get_equalize(256);
     } else{
 	img = src.channel(0).get_blur(1.0).resize(512,512,1,1,5).get_equalize(256);
