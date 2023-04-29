@@ -1,4 +1,4 @@
-#include "bmbhash.h"
+#include "pHash.h"
 
 static int _bmb_setbit(BMBHash &bh, uint32_t bit) {
     if (bh.hash == NULL) return -1;

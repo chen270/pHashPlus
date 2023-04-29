@@ -32,7 +32,7 @@
 #ifdef HAVE_DIRENT_H
 #include <dirent.h>
 #else
-#include "dirent.h"
+#include "win/dirent.h"
 #endif
 
 #include <unistd.h>
@@ -41,7 +41,7 @@
 #include <sys/stat.h>
 
 #if defined(_WIN32)
-#include "mman.h"
+#include "win/mman.h"
 #else
 #include <sys/mman.h>
 #endif
@@ -92,6 +92,12 @@ typedef unsigned long long ulong64;
 typedef signed long long long64;
 #endif
 
+#if defined(_WIN32)
+    #define DLL_EXPORT __declspec(dllexport)
+#else
+    #define DLL_INTERFACE_EXPORT
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -121,35 +127,12 @@ typedef struct ph_slice {
     void *hash_params;
 } slice;
 
-struct BinHash 
-{
-	uint8_t *hash;
-	uint32_t bytelength;
-	uint32_t byteidx; // used by addbit()
-	uint8_t bitmask;  // used by addbit()
+typedef struct bmb_hash {
+    uint8_t *hash;
+    uint32_t bytelength;
+} BMBHash;
 
-	/*
-	 * add a single bit to hash. the bits are 
-	 * written from left to right.
-	 */
-	int addbit(uint8_t bit)
-	{
-		if (bitmask == 0) 
-		{
-			bitmask = 128; // reset bitmask to "10000000"
-			byteidx++;     // jump to next byte in array
-		}
-
-		if (byteidx >= bytelength) return -1;
-		
-		if (bit == 1) *(hash + byteidx) |= bitmask;
-		bitmask >>=1;
-		return 0;
-	}	
-};
-
-BinHash* _ph_bmb_new(uint32_t bytelength);
-void ph_bmb_free(BinHash *binHash);
+DLL_EXPORT void ph_bmb_free(BMBHash &bh);
 
 /*! /brief Radon Projection info
  */
@@ -202,16 +185,16 @@ int ph_num_threads();
 /* /brief alloc a single data point
  *  allocates path array, does nto set id or path
  */
- DP* ph_malloc_datapoint(int hashtype);
+DLL_EXPORT DP* ph_malloc_datapoint(int hashtype);
 
 /** /brief free a datapoint and its path
  *
  */
-void ph_free_datapoint(DP *dp);
+DLL_EXPORT void ph_free_datapoint(DP *dp);
 
 /*! /brief copyright information
  */
-const char* ph_about();
+DLL_EXPORT const char* ph_about();
 
 /*! /brief radon function
  *  Find radon projections of N lines running through the image center for lines angled 0
@@ -222,7 +205,7 @@ const char* ph_about();
  *  /return int value - less than 0 for error
  */
 #ifdef HAVE_IMAGE_HASH
-int ph_radon_projections(const CImg<uint8_t> &img,int N,Projections &projs);
+DLL_EXPORT int ph_radon_projections(const CImg<uint8_t> &img,int N,Projections &projs);
 
 /*! /brief feature vector
  *         compute the feature vector from a radon projection map.
@@ -230,7 +213,7 @@ int ph_radon_projections(const CImg<uint8_t> &img,int N,Projections &projs);
  *  /param  fv    - (out) Features struct
  *  /return int value - less than 0 for error
 */
-int ph_feature_vector(const Projections &projs,Features &fv);
+DLL_EXPORT int ph_feature_vector(const Projections &projs,Features &fv);
 
 /*! /brief dct 
  *  Compute the dct of a given vector
@@ -238,7 +221,7 @@ int ph_feature_vector(const Projections &projs,Features &fv);
  *  /param D - (out) the dct of R
  *  /return  int value - less than 0 for error
 */
-int ph_dct(const Features &fv, Digest &digest);
+DLL_EXPORT int ph_dct(const Features &fv, Digest &digest);
 
 /*! /brief cross correlation for 2 series
  *  Compute the cross correlation of two series vectors
@@ -250,7 +233,7 @@ int ph_dct(const Features &fv, Digest &digest);
  *  /return - int value - 1 (true) for same, 0 (false) for different, < 0 for error
  */
 
-int ph_crosscorr(const Digest &x,const Digest &y,double &pcc, double threshold = 0.90);
+DLL_EXPORT int ph_crosscorr(const Digest &x,const Digest &y,double &pcc, double threshold = 0.90);
 
 /*! /brief image digest
  *  Compute the image digest for an image given the input image
@@ -261,7 +244,7 @@ int ph_crosscorr(const Digest &x,const Digest &y,double &pcc, double threshold =
  *  /param N      - int value for the number of angles to consider. 
  *  /return       - less than 0 for error
  */
-int _ph_image_digest(const CImg<uint8_t> &img,double sigma, double gamma,Digest &digest,int N=180);
+DLL_EXPORT int _ph_image_digest(const CImg<uint8_t> &img,double sigma, double gamma,Digest &digest,int N=180);
 
 /*! /brief image digest
  *  Compute the image digest given the file name.
@@ -271,7 +254,7 @@ int _ph_image_digest(const CImg<uint8_t> &img,double sigma, double gamma,Digest 
  *  /param digest - Digest struct
  *  /param N      - int value for number of angles to consider
  */
-int ph_image_digest(const char *file, double sigma, double gamma, Digest &digest,int N=180);
+DLL_EXPORT int ph_image_digest(const char *file, double sigma, double gamma, Digest &digest,int N=180);
 
 
 /*! /brief compare 2 images
@@ -284,7 +267,7 @@ int ph_image_digest(const char *file, double sigma, double gamma, Digest &digest
  *  /param theshold - double value for the threshold
  *  /return int 0 (false) for different images, 1 (true) for same image, less than 0 for error
  */
-int _ph_compare_images(const CImg<uint8_t> &imA,const CImg<uint8_t> &imB,double &pcc, double sigma = 3.5, double gamma = 1.0,int N=180,double threshold=0.90);
+DLL_EXPORT int _ph_compare_images(const CImg<uint8_t> &imA,const CImg<uint8_t> &imB,double &pcc, double sigma = 3.5, double gamma = 1.0,int N=180,double threshold=0.90);
 
 /*! /brief compare 2 images
  *  Compare 2 images given the file names
@@ -296,37 +279,41 @@ int _ph_compare_images(const CImg<uint8_t> &imA,const CImg<uint8_t> &imB,double 
  *  /param N     - int number for number of angles
  *  /return int 0 (false) for different image, 1 (true) for same images, less than 0 for error
  */
-int ph_compare_images(const char *file1, const char *file2,double &pcc, double sigma = 3.5, double gamma=1.0, int N=180,double threshold=0.90);
+DLL_EXPORT int ph_compare_images(const char *file1, const char *file2,double &pcc, double sigma = 3.5, double gamma=1.0, int N=180,double threshold=0.90);
 
 /*! /brief compute dct robust image hash
  *  /param file string variable for name of file
  *  /param hash of type ulong64 (must be 64-bit variable)
  *  /return int value - -1 for failure, 1 for success
  */
-int ph_dct_imagehash(const char* file,ulong64 &hash);
+DLL_EXPORT int ph_dct_imagehash(const char* file,ulong64 &hash);
 
 /*! /brief compute dct robust image hash
  *  /param img - CImg object of source image
  *  /param hash of type ulong64 (must be 64-bit variable)
  *  /return int value - -1 for failure, 1 for success
  */
-int _ph_dct_imagehash(const CImg<uint8_t> &img, ulong64 &hash);
+DLL_EXPORT int _ph_dct_imagehash(const CImg<uint8_t> &img, ulong64 &hash);
 
-int ph_bmb_imagehash(const char *file, uint8_t method, BinHash **ret_hash);
+DLL_EXPORT int ph_bmb_imagehash(const char *file, BMBHash &ret_hash);
+
+DLL_EXPORT int _ph_bmb_imagehash(const CImg<uint8_t> &img, BMBHash &ret_hash);
+
+DLL_EXPORT double ph_bmb_distance(const BMBHash &bh1, const BMBHash &bh2);
 #endif
 
 #ifdef HAVE_PTHREAD
-DP** ph_dct_image_hashes(char *files[], int count, int threads = 0);
+DLL_EXPORT DP** ph_dct_image_hashes(char *files[], int count, int threads = 0);
 #endif
 
 #ifdef HAVE_VIDEO_HASH
 static CImgList<uint8_t>* ph_getKeyFramesFromVideo(const char *filename);
 
-ulong64* ph_dct_videohash(const char *filename, int &Length);
+DLL_EXPORT ulong64* ph_dct_videohash(const char *filename, int &Length);
 
-DP** ph_dct_video_hashes(char *files[], int count, int threads = 0);
+DLL_EXPORT DP** ph_dct_video_hashes(char *files[], int count, int threads = 0);
 
-double ph_dct_videohash_dist(ulong64 *hashA, int N1, ulong64 *hashB, int N2, int threshold=21);
+DLL_EXPORT double ph_dct_videohash_dist(ulong64 *hashA, int N1, ulong64 *hashB, int N2, int threshold=21);
 #endif
 
 /* ! /brief dct video robust hash
@@ -336,7 +323,7 @@ double ph_dct_videohash_dist(ulong64 *hashA, int N1, ulong64 *hashB, int N2, int
  *   /return int value - less than 0 for error
  */
 #ifdef HAVE_IMAGE_HASH
-int ph_hamming_distance(const ulong64 hash1,const ulong64 hash2);
+DLL_EXPORT int ph_hamming_distance(const ulong64 hash1,const ulong64 hash2);
 
 /** /brief create a list of datapoint's directly from a directory of image files
  *  /param dirname - path and name of directory containg all image file names
@@ -345,7 +332,7 @@ int ph_hamming_distance(const ulong64 hash1,const ulong64 hash2);
  *  /return pointer to a list of DP pointers (NULL for error)
  */
 
-DP** ph_read_imagehashes(const char *dirname,int capacity, int &count);
+DLL_EXPORT DP** ph_read_imagehashes(const char *dirname,int capacity, int &count);
 
 /** /brief create MH image hash for filename image
 *   /param filename - string name of image file
@@ -354,7 +341,7 @@ DP** ph_read_imagehashes(const char *dirname,int capacity, int &count);
 *   /param lvl   - int level of scale factor (default = 1)
 *   /return uint8_t array
 **/
-uint8_t* ph_mh_imagehash(const char *filename, int &N, float alpha=2.0f, float lvl = 1.0f);
+DLL_EXPORT uint8_t* ph_mh_imagehash(const char *filename, int &N, float alpha=2.0f, float lvl = 1.0f);
 
 /** /brief create MH image hash for filename image
 *   /param img - CImg object of source image
@@ -363,13 +350,13 @@ uint8_t* ph_mh_imagehash(const char *filename, int &N, float alpha=2.0f, float l
 *   /param lvl   - int level of scale factor (default = 1)
 *   /return uint8_t array
 **/
-uint8_t *_ph_mh_imagehash(const CImg<uint8_t> &img, int &N, float alpha=2.0f, float lvl = 1.0f);
+DLL_EXPORT uint8_t *_ph_mh_imagehash(const CImg<uint8_t> &img, int &N, float alpha=2.0f, float lvl = 1.0f);
 #endif
 /** /brief count number bits set in given byte
 *   /param val - uint8_t byte value
 *   /return int value for number of bits set
 **/
-int ph_bitcount8(uint8_t val);
+DLL_EXPORT int ph_bitcount8(uint8_t val);
 
 /** /brief compute hamming distance between two byte arrays
  *  /param hashA - byte array for first hash
@@ -378,7 +365,7 @@ int ph_bitcount8(uint8_t val);
  *  /param lenB - int length of hashB
  *  /return double value for normalized hamming distance
  **/
-double ph_hammingdistance2(uint8_t *hashA, int lenA, uint8_t *hashB, int lenB);
+DLL_EXPORT double ph_hammingdistance2(uint8_t *hashA, int lenA, uint8_t *hashB, int lenB);
 
 /** /brief get all the filenames in specified directory
  *  /param dirname - string value for path and filename
@@ -387,7 +374,7 @@ double ph_hammingdistance2(uint8_t *hashA, int lenA, uint8_t *hashB, int lenB);
  *  /return array of pointers to string file names (NULL for error)
  **/
 
-char** ph_readfilenames(const char *dirname,int &count);
+DLL_EXPORT char** ph_readfilenames(const char *dirname,int &count);
 
 
 /** /brief textual hash for file
@@ -395,7 +382,7 @@ char** ph_readfilenames(const char *dirname,int &count);
  *  /param nbpoints - int length of array of return value (out)
  *  /return TxtHashPoint* array of hash points with respective index into file.
  **/
-TxtHashPoint* ph_texthash(const char *filename, int *nbpoints);
+DLL_EXPORT TxtHashPoint* ph_texthash(const char *filename, int *nbpoints);
 
 /** /brief compare 2 text hashes
  *  /param hash1 -TxtHashPoint
@@ -405,7 +392,7 @@ TxtHashPoint* ph_texthash(const char *filename, int *nbpoints);
  *  /param nbmatches - int number of matches found (out)
  *  /return TxtMatch* - list of all matches
  **/
-TxtMatch* ph_compare_text_hashes(TxtHashPoint *hash1, int N1, TxtHashPoint *hash2, int N2, int *nbmatches);
+DLL_EXPORT TxtMatch* ph_compare_text_hashes(TxtHashPoint *hash1, int N1, TxtHashPoint *hash2, int N2, int *nbmatches);
 
 /* random char mapping for textual hash */
 
