@@ -194,7 +194,7 @@ int ph_feature_vector(const Projections &projs, Features &fv)
 }
 
 int ph_dct(const Features &fv, Digest &digest) {
-    int N = fv.size;
+    const int N = fv.size;
     const int nb_coeffs = 40;
 
     digest.coeffs = (uint8_t *)malloc(nb_coeffs * sizeof(uint8_t));
@@ -209,19 +209,18 @@ int ph_dct(const Features &fv, Digest &digest) {
     double D_temp[nb_coeffs];
     double max = 0.0;
     double min = 0.0;
-    double sqrt_n = sqrt((double)N);
-    for (int k = 0; k < nb_coeffs; k++) {
+    const double sqrt_n = 1.0 / sqrt((double)N);
+    const double PI_2N = cimg::PI / (2 * N);
+    const double SQRT_TWO_OVER_SQRT_N = SQRT_TWO * sqrt_n;
+
+    for (int k = 0; k < nb_coeffs; ++k) {
         double sum = 0.0;
-        for (int n = 0; n < N; n++) {
-            double temp = R[n] * cos((cimg::PI * (2 * n + 1) * k) / (2 * N));
-            sum += temp;
+        for (int n = 0; n < N; ++n) {
+            sum += R[n] * cos(PI_2N * (2 * n + 1) * k);
         }
-        if (k == 0)
-            D_temp[k] = sum / sqrt_n;
-        else
-            D_temp[k] = sum * SQRT_TWO / sqrt_n;
-        if (D_temp[k] > max) max = D_temp[k];
-        if (D_temp[k] < min) min = D_temp[k];
+        D_temp[k] = sum * ((k == 0) ? sqrt_n : SQRT_TWO_OVER_SQRT_N);
+        max = std::max(max, D_temp[k]);
+        min = std::min(min, D_temp[k]);
     }
 
     for (int i = 0; i < nb_coeffs; i++) {
