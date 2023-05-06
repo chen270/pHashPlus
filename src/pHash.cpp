@@ -289,7 +289,7 @@ int _ph_image_digest(const CImg<uint8_t> &img, double sigma, double gamma,
 
     graysc.blur((float)sigma);
 
-    (graysc / graysc.max()).pow(gamma);
+    // (graysc / graysc.max()).pow(gamma);
 
     Projections projs;
     if (ph_radon_projections(graysc, N, projs) < 0) goto cleanup;
