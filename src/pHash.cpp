@@ -232,7 +232,7 @@ int ph_dct(const Features &fv, Digest &digest) {
 
 int ph_crosscorr(const Digest &x, const Digest &y, double &pcc,
                  double threshold) {
-    int N = y.size;
+    const int N = y.size;
     int result = 0;
 
     uint8_t *x_coeffs = x.coeffs;
@@ -245,17 +245,18 @@ int ph_crosscorr(const Digest &x, const Digest &y, double &pcc,
         sumx += x_coeffs[i];
         sumy += y_coeffs[i];
     }
-    double meanx = sumx / N;
-    double meany = sumy / N;
+    const double meanx = sumx / N;
+    const double meany = sumy / N;
     double max = 0;
     for (int d = 0; d < N; d++) {
         double num = 0.0;
         double denx = 0.0;
         double deny = 0.0;
         for (int i = 0; i < N; i++) {
-            num += (x_coeffs[i] - meanx) * (y_coeffs[(N + i - d) % N] - meany);
-            denx += pow((x_coeffs[i] - meanx), 2);
-            deny += pow((y_coeffs[(N + i - d) % N] - meany), 2);
+            const int idx = (N + i - d) % N;
+            num += (x_coeffs[i] - meanx) * (y_coeffs[idx] - meany);
+            denx += ((x_coeffs[i] - meanx) * (x_coeffs[i] - meanx));
+            deny += ((y_coeffs[idx] - meany) * (y_coeffs[idx] - meany));
         }
         r[d] = num / sqrt(denx * deny);
         if (r[d] > max) max = r[d];
