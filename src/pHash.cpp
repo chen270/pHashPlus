@@ -95,7 +95,7 @@ int ph_radon_projections(const CImg<uint8_t> &img, int N, Projections &projs) {
     projs.R = new CImg<uint8_t>(N, D, 1, 1, 0);
     projs.nb_pix_perline = (int *)calloc(N, sizeof(int));
 
-    if (!projs.R || !projs.nb_pix_perline) return EXIT_FAILURE;
+    if (!projs.R || !projs.nb_pix_perline) return -1;
 
     projs.size = N;
 
@@ -141,24 +141,26 @@ int ph_radon_projections(const CImg<uint8_t> &img, int N, Projections &projs) {
         j += 2;
     }
 
-    return EXIT_SUCCESS;
+    return 0;
 }
 
-int ph_feature_vector(const Projections &projs, Features &fv) {
-    CImg<uint8_t> *ptr_map = projs.R;
-    CImg<uint8_t> projection_map = *ptr_map;
-    int *nb_perline = projs.nb_pix_perline;
-    int N = projs.size;
-    int D = projection_map.height();
+int ph_feature_vector(const Projections &projs, Features &fv)
+{
+    const CImg<uint8_t> &projection_map = *(projs.R);
+    const int *nb_perline = projs.nb_pix_perline;
+    const int N = projs.size;
+    const int D = projection_map.height();
 
     fv.features = (double *)malloc(N * sizeof(double));
     fv.size = N;
-    if (!fv.features) return EXIT_FAILURE;
+    if (!fv.features)
+        return -1;
 
     double *feat_v = fv.features;
     double sum = 0.0;
     double sum_sqd = 0.0;
-    for (int k = 0; k < N; k++) {
+    for (int k = 0; k < N; ++k)
+    {
         double line_sum = 0.0;
         double line_sum_sqd = 0.0;
         int nb_pixels = nb_perline[k];
@@ -167,23 +169,27 @@ int ph_feature_vector(const Projections &projs, Features &fv) {
             feat_v[k] = 0.0;
             continue;
         }
-        for (int i = 0; i < D; i++) {
-            line_sum += projection_map(k, i);
-            line_sum_sqd += projection_map(k, i) * projection_map(k, i);
+        for (int i = 0; i < D; ++i)
+        {
+            const double pixel_value = projection_map(k, i);
+            line_sum += pixel_value;
+            line_sum_sqd += pixel_value * pixel_value;
         }
-        feat_v[k] = (line_sum_sqd / nb_pixels) -
-                    (line_sum * line_sum) / (nb_pixels * nb_pixels);
+        const double nb_pixels_inv = 1.0 / nb_pixels;
+        const double mean = line_sum * nb_pixels_inv;
+        feat_v[k] = line_sum_sqd * nb_pixels_inv - mean * mean;
         sum += feat_v[k];
         sum_sqd += feat_v[k] * feat_v[k];
     }
-    double mean = sum / N;
-    double var = sqrt((sum_sqd / N) - (sum * sum) / (N * N));
+    const double mean = sum / N;
+    const double var = 1.0 / sqrt((sum_sqd / N) - mean * mean);
 
-    for (int i = 0; i < N; i++) {
-        feat_v[i] = (feat_v[i] - mean) / var;
+    for (int i = 0; i < N; ++i)
+    {
+        feat_v[i] = (feat_v[i] - mean) * var;
     }
 
-    return EXIT_SUCCESS;
+    return 0;
 }
 
 int ph_dct(const Features &fv, Digest &digest) {
@@ -191,7 +197,7 @@ int ph_dct(const Features &fv, Digest &digest) {
     const int nb_coeffs = 40;
 
     digest.coeffs = (uint8_t *)malloc(nb_coeffs * sizeof(uint8_t));
-    if (!digest.coeffs) return EXIT_FAILURE;
+    if (!digest.coeffs) return -1;
 
     digest.size = nb_coeffs;
 
@@ -221,7 +227,7 @@ int ph_dct(const Features &fv, Digest &digest) {
         D[i] = (uint8_t)(UCHAR_MAX * (D_temp[i] - min) / (max - min));
     }
 
-    return EXIT_SUCCESS;
+    return 0;
 }
 
 int ph_crosscorr(const Digest &x, const Digest &y, double &pcc,
@@ -267,7 +273,7 @@ int ph_crosscorr(const Digest &x, const Digest &y, double &pcc,
 
 int _ph_image_digest(const CImg<uint8_t> &img, double sigma, double gamma,
                      Digest &digest, int N) {
-    int result = EXIT_FAILURE;
+    int result = -1;
     CImg<uint8_t> graysc;
     if (img.spectrum() > 3)
     {
@@ -299,7 +305,7 @@ int _ph_image_digest(const CImg<uint8_t> &img, double sigma, double gamma,
 
     if (ph_dct(features, digest) < 0) goto cleanup;
 
-    result = EXIT_SUCCESS;
+    result = 0;
 
 cleanup:
     free(projs.nb_pix_perline);
