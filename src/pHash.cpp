@@ -101,9 +101,10 @@ int ph_radon_projections(const CImg<uint8_t> &img, int N, Projections &projs) {
 
     CImg<uint8_t> *ptr_radon_map = projs.R;
     int *nb_per_line = projs.nb_pix_perline;
+    double factorPi = cimg::PI / 180.0;
 
     for (int k = 0; k < N / 4 + 1; k++) {
-        double theta = k * cimg::PI / N;
+        double theta = k * factorPi;
         double alpha = std::tan(theta);
         for (int x = 0; x < D; x++) {
             double y = alpha * (x - x_off);
@@ -121,7 +122,7 @@ int ph_radon_projections(const CImg<uint8_t> &img, int N, Projections &projs) {
     }
     int j = 0;
     for (int k = 3 * N / 4; k < N; k++) {
-        double theta = k * cimg::PI / N;
+        double theta = k * factorPi;
         double alpha = std::tan(theta);
         for (int x = 0; x < D; x++) {
             double y = alpha * (x - x_off);
