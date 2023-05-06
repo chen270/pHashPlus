@@ -18,3 +18,4 @@ Features of this project:
 1. Add mingw compilation, added the relevant mingw adaptation interface.
 2. Add 4-channel color support, the original project will crash.
 3. Fix some bugs in the official pHash project.
+4. support c++11 multithread.
