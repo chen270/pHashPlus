@@ -4,7 +4,7 @@ project(pHash)
 
 OPTION(PHASH_DYNAMIC   "Build pHash dynamic library"                     ON)
 OPTION(PHASH_STATIC    "Build pHash static library"                      OFF)
-OPTION(PHASH_EXT       "Add multithread function for pHash, need c++11"  OFF)
+OPTION(PHASH_EXT       "Add multithread function for pHash, need c++11"  ON)
 OPTION(WITH_OTHER_IMAGE_HASH "Other Image Libraries dependencies"        OFF)
 OPTION(WITH_AUDIO_HASH "Audio hash support"                              OFF)
 OPTION(WITH_VIDEO_HASH "Video hash support"                              OFF)
@@ -139,6 +139,14 @@ if(PHASH_EXAMPLES)
         add_executable(TestImgHashWithCImg "${PROJECT_SOURCE_DIR}/tests/imagehash-test-cimg.cpp")
         target_link_libraries(TestImgHashWithCImg pHash)
         install(TARGETS TestImgHashWithCImg DESTINATION ${PROJECT_SOURCE_DIR}/bin)
+
+        add_executable(TestImgHashWithCImgMultipthread "${PROJECT_SOURCE_DIR}/tests/imagehash-test-cimg-multipthread.cpp")
+        target_link_libraries(TestImgHashWithCImgMultipthread pHash)
+        install(TARGETS TestImgHashWithCImgMultipthread DESTINATION ${PROJECT_SOURCE_DIR}/bin)
+
+        add_executable(TestImgHashWithCImgNoblur "${PROJECT_SOURCE_DIR}/tests/imagehash-test-cimg-no-blur.cpp")
+        target_link_libraries(TestImgHashWithCImgNoblur pHash)
+        install(TARGETS TestImgHashWithCImgNoblur DESTINATION ${PROJECT_SOURCE_DIR}/bin)
     endif()
 
     # if(HAVE_IMAGE_HASH)

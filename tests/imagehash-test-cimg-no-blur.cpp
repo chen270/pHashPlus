@@ -7,8 +7,6 @@
 #include <iostream>
 #include <chrono>
 
-#include "pHash_ext.h"
-
 static int m_angles = 180;
 static double m_sigma = 1.0;
 static double m_gamma = 1.0;
@@ -85,17 +83,10 @@ static bool _compare_images_ex(const CImg<uint8_t> &img1,
             if (d < 26) ret = true;
             break;
         case RADIALHASH:
-        {
-            if (img1.width() == img2.width() && img1.height() == img2.height())
-                ret = compare_radial_imagehash_ex_samesize(img1, img2);
-            else
-            {
-                d = compare_radial_imagehash_ex(img1, img2); // 官方大于0.85为相似
-                printf("ImageMatching-test: RADIALHASH ret = %f\n", d);
-                if (d > 0.85) ret = true;
-            }
+            d = compare_radial_imagehash_ex(img1, img2);  // 官方大于0.85为相似
+            printf("ImageMatching-test: RADIALHASH ret = %f\n", d);
+            if (d > 0.85) ret = true;
             break;
-        }
         case MHASH:
             d = compare_mh_imagehash_ex(img1, img2);  // 官方小于0.4为相似
             printf("ImageMatching-test: MHASH ret = %f\n", d);
@@ -127,14 +118,76 @@ static double compare_dct_imagehash_ex(const CImg<uint8_t> &img1, const CImg<uin
     return static_cast<double>(d);
 }
 
+int _ph_image_digest_ext(const CImg<uint8_t> &img, double sigma, double gamma,
+                     Digest &digest, int N) {
+    int result = -1;
+    CImg<uint8_t> graysc;
+    if (img.spectrum() > 3)
+    {
+        CImg<> rgb = img.get_shared_channels(0, 2);
+        graysc = rgb.RGBtoYCbCr().channel(0);
+    }
+    else if (img.spectrum() == 3)
+    {
+        graysc = img.get_RGBtoYCbCr().channel(0);
+    }
+    else if (img.spectrum() == 1)
+    {
+        graysc = img;
+    }
+    else
+    {
+        return result;
+    }
+
+    // graysc.blur((float)sigma);
+
+    Projections projs;
+    if (ph_radon_projections(graysc, N, projs) < 0) goto cleanup;
+
+    Features features;
+    if (ph_feature_vector(projs, features) < 0) goto cleanup;
+
+    if (ph_dct(features, digest) < 0) goto cleanup;
+
+    result = 0;
+
+cleanup:
+    free(projs.nb_pix_perline);
+    free(features.features);
+
+    delete projs.R;
+    return result;
+}
+
+static int _ph_compare_images_ext(const CImg<uint8_t> &imA, const CImg<uint8_t> &imB,
+                       double &pcc, double sigma, double gamma, int N,
+                       double threshold) {
+    int result = 0;
+    Digest digestA;
+    if (_ph_image_digest_ext(imA, sigma, gamma, digestA, N) < 0) goto cleanup;
+
+    Digest digestB;
+    if (_ph_image_digest_ext(imB, sigma, gamma, digestB, N) < 0) goto cleanup;
+
+    if (ph_crosscorr(digestA, digestB, pcc, threshold) < 0) goto cleanup;
+
+    if (pcc > threshold) result = 1;
+
+cleanup:
+
+    free(digestA.coeffs);
+    free(digestB.coeffs);
+    return result;
+}
+
 static double compare_radial_imagehash_ex(const CImg<uint8_t> &img1, const CImg<uint8_t> &img2)
 {
     double pcc = 1.0;
     double threshold = 0.85;
-    int ret = _ph_compare_images(img1, img2, pcc, m_sigma, m_gamma, m_angles, threshold);
+    int ret = _ph_compare_images_ext(img1, img2, pcc, m_sigma, m_gamma, m_angles, threshold);
     return pcc;
 }
-
 
 static double compare_mh_imagehash_ex(const CImg<uint8_t> &img1, const CImg<uint8_t> &img2)
 {
