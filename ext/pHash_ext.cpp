@@ -112,11 +112,12 @@ static int ph_radon_projections_samesize(const CImg<uint8_t> &imgA, Projections 
     CImg<uint8_t> *ptr_radon_mapB = projsB.R;
     int *nb_per_line = projsA.nb_pix_perline;
     double factorPi = cimg::PI / 180.0;
-
-    for (int k = 0; k < N / 4 + 1; k++) {
+    int N_d2 = (N >> 1);
+    int N_d4 = N / 4;
+    for (int k = 0; k < N_d4 + 1; ++k) {
         double theta = k * factorPi;
         double alpha = std::tan(theta);
-        for (int x = 0; x < D; x++) {
+        for (int x = 0; x < D; ++x) {
             double y = alpha * (x - x_off);
             int yd = std::round(y);
             if ((yd + y_off >= 0) && (yd + y_off < height) && (x < width)) {
@@ -124,19 +125,22 @@ static int ph_radon_projections_samesize(const CImg<uint8_t> &imgA, Projections 
                 *ptr_radon_mapB->data(k, x) = imgB(x, yd + y_off);
                 nb_per_line[k] += 1;
             }
-            if ((yd + x_off >= 0) && (yd + x_off < width) && (k != N / 4) &&
+            if ((yd + x_off >= 0) && (yd + x_off < width) && (k != N_d4) &&
                 (x < height)) {
-                *ptr_radon_mapA->data(N / 2 - k, x) = imgA(yd + x_off, x);
-                *ptr_radon_mapB->data(N / 2 - k, x) = imgB(yd + x_off, x);
-                nb_per_line[N / 2 - k] += 1;
+                *ptr_radon_mapA->data(N_d2 - k, x) = imgA(yd + x_off, x);
+                *ptr_radon_mapB->data(N_d2 - k, x) = imgB(yd + x_off, x);
+                nb_per_line[N_d2 - k] += 1;
             }
         }
     }
+
     int j = 0;
-    for (int k = 3 * N / 4; k < N; k++) {
+    int N3_d4 = 3 * N / 4;
+    int y_off_m2 = 2 * y_off;
+    for (int k = N3_d4; k < N; ++k) {
         double theta = k * factorPi;
         double alpha = std::tan(theta);
-        for (int x = 0; x < D; x++) {
+        for (int x = 0; x < D; ++x) {
             double y = alpha * (x - x_off);
             int yd = std::round(y);
             if ((yd + y_off >= 0) && (yd + y_off < height) && (x < width)) {
@@ -146,8 +150,8 @@ static int ph_radon_projections_samesize(const CImg<uint8_t> &imgA, Projections 
                 *ptr_radon_mapB->data(k, x) = imgB(x, yd + y_off);
             }
             if ((y_off - yd >= 0) && (y_off - yd < width) &&
-                (2 * y_off - x >= 0) && (2 * y_off - x < height) &&
-                (k != 3 * N / 4)) {
+                (y_off_m2 - x >= 0) && (y_off_m2 - x < height) &&
+                (k != N3_d4)) {
                 *ptr_radon_mapA->data(k - j, x) =
                     imgA(-yd + y_off, -(x - y_off) + y_off);
                 nb_per_line[k - j] += 1;
@@ -240,7 +244,6 @@ int ph_dct_samsize(const Features &fvA, Digest &digestA, const Features &fvB, Di
 
     digestA.coeffs = (uint8_t *)malloc(nb_coeffs * sizeof(uint8_t));
     digestB.coeffs = (uint8_t *)malloc(nb_coeffs * sizeof(uint8_t));
-    // if (!digest.coeffs) return -1;
 
     digestA.size = nb_coeffs;
     digestB.size = nb_coeffs;
@@ -278,9 +281,11 @@ int ph_dct_samsize(const Features &fvA, Digest &digestA, const Features &fvB, Di
         minB = std::min(minB, D_tempB[k]);
     }
 
+    double denoA = 1.0 / (maxA - minA);
+    double denoB = 1.0 / (maxB - minB);
     for (int i = 0; i < nb_coeffs; i++) {
-        DA[i] = (uint8_t)(UCHAR_MAX * (D_tempA[i] - minA) / (maxA - minA));
-        DB[i] = (uint8_t)(UCHAR_MAX * (D_tempB[i] - minB) / (maxB - minB));
+        DA[i] = (uint8_t)(UCHAR_MAX * (D_tempA[i] - minA) * denoA);
+        DB[i] = (uint8_t)(UCHAR_MAX * (D_tempB[i] - minB) * denoB);
     }
 
     return 0;
