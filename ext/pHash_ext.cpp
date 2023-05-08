@@ -309,6 +309,10 @@ static int _ph_image_digest_samesize(const CImg<uint8_t> &imgA, const CImg<uint8
         grayscA = imgA;
         grayscB = imgB;
     }
+    else
+    {
+        return result;
+    }
 
     if (need_blur > 0)
     {
