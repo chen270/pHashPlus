@@ -207,8 +207,8 @@ int ph_dct(const Features &fv, Digest &digest) {
     uint8_t *D = digest.coeffs;
 
     double D_temp[nb_coeffs];
-    double max = 0.0;
-    double min = 0.0;
+    double D_max = 0.0;
+    double D_min = 0.0;
     const double sqrt_n = 1.0 / sqrt((double)N);
     const double PI_2N = cimg::PI / (2 * N);
     const double SQRT_TWO_OVER_SQRT_N = SQRT_TWO * sqrt_n;
@@ -219,12 +219,12 @@ int ph_dct(const Features &fv, Digest &digest) {
             sum += R[n] * cos(PI_2N * (2 * n + 1) * k);
         }
         D_temp[k] = sum * ((k == 0) ? sqrt_n : SQRT_TWO_OVER_SQRT_N);
-        max = std::max(max, D_temp[k]);
-        min = std::min(min, D_temp[k]);
+        D_max = D_max > D_temp[k] ? D_max : D_temp[k];
+        D_min = D_min < D_temp[k] ? D_min : D_temp[k];
     }
 
     for (int i = 0; i < nb_coeffs; i++) {
-        D[i] = (uint8_t)(UCHAR_MAX * (D_temp[i] - min) / (max - min));
+        D[i] = (uint8_t)(UCHAR_MAX * (D_temp[i] - D_min) / (D_max - D_min));
     }
 
     return 0;
@@ -247,7 +247,7 @@ int ph_crosscorr(const Digest &x, const Digest &y, double &pcc,
     }
     const double meanx = sumx / N;
     const double meany = sumy / N;
-    double max = 0;
+    double d_max = 0;
     for (int d = 0; d < N; d++) {
         double num = 0.0;
         double denx = 0.0;
@@ -259,18 +259,14 @@ int ph_crosscorr(const Digest &x, const Digest &y, double &pcc,
             deny += ((y_coeffs[idx] - meany) * (y_coeffs[idx] - meany));
         }
         r[d] = num / sqrt(denx * deny);
-        if (r[d] > max) max = r[d];
+        if (r[d] > d_max) d_max = r[d];
     }
     delete[] r;
-    pcc = max;
-    if (max > threshold) result = 1;
+    pcc = d_max;
+    if (d_max > threshold) result = 1;
 
     return result;
 }
-
-#ifdef max
-#undef max
-#endif
 
 int _ph_image_digest(const CImg<uint8_t> &img, double sigma, double gamma,
                      Digest &digest, int N) {
@@ -315,8 +311,6 @@ cleanup:
     delete projs.R;
     return result;
 }
-
-#define max(a, b) (((a) > (b)) ? (a) : (b))
 
 int ph_image_digest(const char *file, double sigma, double gamma,
                     Digest &digest, int N) {
