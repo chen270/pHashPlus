@@ -35,12 +35,15 @@
 #include "win/dirent.h"
 #endif
 
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
+
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#if defined(_WIN32)
+#ifdef _WIN32
 #include "win/mman.h"
 #else
 #include <sys/mman.h>
@@ -68,7 +71,7 @@ using namespace cimg_library;
 #include <pthread.h>
 #endif
 
-#ifndef __GLIBC__
+#if defined(HAVE_SYSPARAM_H) && not defined(__GLIBC__)
 #include <sys/param.h>
 #endif
 

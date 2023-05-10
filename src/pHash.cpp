@@ -830,9 +830,25 @@ double ph_dct_videohash_dist(ulong64 *hashA, int N1, ulong64 *hashB, int N2, int
 
 #endif
 
-int ph_hamming_distance(const ulong64 hash1, const ulong64 hash2) {
+#ifdef _MSC_VER
+static const ulong64 m1 = 0x5555555555555555ULL;
+static const ulong64 m2 = 0x3333333333333333ULL;
+static const ulong64 h01 = 0x0101010101010101ULL;
+static const ulong64 m4 = 0x0f0f0f0f0f0f0f0fULL;
+#endif // _MSC_VER
+
+int ph_hamming_distance(const ulong64 hash1, const ulong64 hash2)
+{
+#ifdef _MSC_VER
+    ulong64 x = hash1 ^ hash2;
+    x -= (x >> 1) & m1;
+    x = (x & m2) + ((x >> 2) & m2);
+    x = (x + (x >> 4)) & m4;
+    return int((x * h01) >> 56);
+#else
     ulong64 x = hash1 ^ hash2;
     return __builtin_popcountll(x);
+#endif
 }
 
 #ifdef HAVE_IMAGE_HASH

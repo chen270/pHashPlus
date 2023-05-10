@@ -44,6 +44,16 @@ else()
     include_directories(${PROJECT_SOURCE_DIR}/src/win)
     set(MMAN_FILE "${PROJECT_SOURCE_DIR}/src/win/mman.cpp")
 
+    CHECK_INCLUDE_FILE_CXX("unistd.h" HAVE_UNISTD_H)
+    if(HAVE_UNISTD_H)
+        add_definitions(-DHAVE_UNISTD_H)
+    endif()
+
+    CHECK_INCLUDE_FILE_CXX("sys/param.h" HAVE_SYSPARAM_H)
+    if(HAVE_SYSPARAM_H)
+        add_definitions(-DHAVE_SYSPARAM_H)
+    endif()
+
     CHECK_INCLUDE_FILE_CXX("dirent.h" HAVE_DIRENT_H)
     if(HAVE_DIRENT_H)
         message("check file: 'dirent.h' has found")
