@@ -82,15 +82,10 @@ using namespace cimg_library;
 #define ULLONG_MAX 18446744073709551615ULL
 #endif
 
-#define ROUNDING_FACTOR(x) (((x) >= 0) ? 0.5 : -0.5) 
+#define ROUNDING_FACTOR(x) (((x) >= 0) ? 0.5 : -0.5)
 
-#if defined( _MSC_VER) || defined(_BORLANDC_)
-typedef unsigned _uint64 ulong64;
-typedef signed _int64 long64;
-#else
 typedef unsigned long long ulong64;
 typedef signed long long long64;
-#endif
 
 #if defined(_WIN32)
     #define DLL_EXPORT __declspec(dllexport)
