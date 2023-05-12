@@ -1,11 +1,10 @@
-#if _MSC_VER && !__INTEL_COMPILER
-#include "win/pHash.h"
-#else
 #include "pHash.h"
-#endif
-
 #include <iostream>
 #include <chrono>
+
+#ifndef RES_DIR_PATH
+#error ResourcesDir path not define! Need Modifiy CMakeLists.txt
+#endif
 
 static int m_angles = 180;
 static double m_sigma = 1.0;
@@ -31,10 +30,9 @@ int main(int argc, char *argv[])
     }
     else
     {
-        const char *o_file1 = "./resources/011.bmp";
-        const char *o_file2 = "./resources/012.bmp";
-        strcpy(file1, o_file1);
-        strcpy(file2, o_file2);
+        const char *path = RES_DIR_PATH;
+        snprintf(file1, 500, "%s/%s", path, "011.bmp");
+        snprintf(file2, 500, "%s/%s", path, "012.bmp");
     }
 
     CImg<uint8_t>img1(file1);
