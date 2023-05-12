@@ -274,11 +274,11 @@ int ph_dct_samsize(const Features &fvA, Digest &digestA, const Features &fvB, Di
         }
         D_tempA[k] = sumA * ((k == 0) ? sqrt_n : SQRT_TWO_OVER_SQRT_N);
         D_tempB[k] = sumB * ((k == 0) ? sqrt_n : SQRT_TWO_OVER_SQRT_N);
-        maxA = std::max(maxA, D_tempA[k]);
-        minA = std::min(minA, D_tempA[k]);
+        maxA = (std::max)(maxA, D_tempA[k]);
+        minA = (std::min)(minA, D_tempA[k]);
 
-        maxB = std::max(maxB, D_tempB[k]);
-        minB = std::min(minB, D_tempB[k]);
+        maxB = (std::max)(maxB, D_tempB[k]);
+        minB = (std::min)(minB, D_tempB[k]);
     }
 
     double denoA = 1.0 / (maxA - minA);

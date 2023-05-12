@@ -67,18 +67,6 @@
 using namespace cimg_library;
 #endif
 
-#ifdef HAVE_PTHREAD
-#include <pthread.h>
-#endif
-
-#if defined(HAVE_SYSPARAM_H) && not defined(__GLIBC__)
-#include <sys/param.h>
-#endif
-
-#ifdef HAVE_SYS_SYSCTL_H
-#include <sys/sysctl.h>
-#endif
-
 #define SQRT_TWO 1.4142135623730950488016887242097
 
 #ifndef ULLONG_MAX
@@ -93,7 +81,7 @@ typedef signed long long long64;
 #if defined(_WIN32)
     #define DLL_EXPORT __declspec(dllexport)
 #else
-    #define DLL_INTERFACE_EXPORT
+    #define DLL_EXPORT
 #endif
 
 #ifdef __cplusplus

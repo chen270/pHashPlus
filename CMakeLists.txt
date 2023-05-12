@@ -1,9 +1,10 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.12)
 
 project(pHash)
 
 OPTION(PHASH_DYNAMIC   "Build pHash dynamic library"                     ON)
 OPTION(PHASH_STATIC    "Build pHash static library"                      OFF)
+OPTION(PHASH_MVP       "Add MVP Hash Storage"                            ON)
 OPTION(PHASH_EXT       "Add multithread function for pHash, need c++11"  ON)
 OPTION(WITH_OTHER_IMAGE_HASH "Other Image Libraries dependencies"        OFF)
 OPTION(WITH_AUDIO_HASH "Audio hash support"                              OFF)
@@ -29,10 +30,28 @@ include_directories(${PROJECT_SOURCE_DIR}/src)
 
 # check file
 include(CheckIncludeFileCXX)
-CHECK_INCLUDE_FILE_CXX("sys/sysctl.h" HAVE_SYS_SYSCTL_H)
-if(HAVE_SYS_SYSCTL_H)
-    message("check file: 'sys/sysctl.h' has found")
-    add_definitions(-DHAVE_SYS_SYSCTL_H)
+CHECK_INCLUDE_FILE_CXX("unistd.h" HAVE_UNISTD_H)
+if(HAVE_UNISTD_H)
+    add_definitions(-DHAVE_UNISTD_H)
+endif()
+
+CHECK_INCLUDE_FILE_CXX("dirent.h" HAVE_DIRENT_H)
+if(HAVE_DIRENT_H)
+    message("check file: 'dirent.h' has found")
+    add_definitions(-DHAVE_DIRENT_H)
+else()
+    set(DIRENT_FILE "${PROJECT_SOURCE_DIR}/src/win/dirent.c")
+endif()
+
+CHECK_INCLUDE_FILE_CXX("pthread.h" HAVE_PTHREAD_H)
+if(HAVE_DIRENT_H)
+    set(THREADS_PREFER_PTHREAD_FLAG ON)
+    find_package(Threads REQUIRED)
+    if(Threads_FOUND)
+        message("check file: 'pthread' has found")
+        set(LIBS_DEPS ${LIBS_DEPS} Threads::Threads)
+        add_definitions(-DHAVE_PTHREAD)
+    endif()
 endif()
 
 if(NOT WIN32)
@@ -40,41 +59,14 @@ if(NOT WIN32)
     set(DIRENT_FILE "")
     EXEC_PROGRAM(uname ARGS -m OUTPUT_VARIABLE BUILD_SYSTEM)
     EXEC_PROGRAM(uname ARGS -s OUTPUT_VARIABLE CMAKE_SYSTEM_NAME)
+
+    # on testing
+    set(PHASH_MVP OFF)
+
 else()
     include_directories(${PROJECT_SOURCE_DIR}/src/win)
     set(MMAN_FILE "${PROJECT_SOURCE_DIR}/src/win/mman.cpp")
-
-    CHECK_INCLUDE_FILE_CXX("unistd.h" HAVE_UNISTD_H)
-    if(HAVE_UNISTD_H)
-        add_definitions(-DHAVE_UNISTD_H)
-    endif()
-
-    CHECK_INCLUDE_FILE_CXX("sys/param.h" HAVE_SYSPARAM_H)
-    if(HAVE_SYSPARAM_H)
-        add_definitions(-DHAVE_SYSPARAM_H)
-    endif()
-
-    CHECK_INCLUDE_FILE_CXX("dirent.h" HAVE_DIRENT_H)
-    if(HAVE_DIRENT_H)
-        message("check file: 'dirent.h' has found")
-        add_definitions(-DHAVE_DIRENT_H)
-    else()
-        set(DIRENT_FILE "${PROJECT_SOURCE_DIR}/src/win/dirent.c")
-    endif()
-
-    CHECK_INCLUDE_FILE_CXX("pthread.h" HAVE_PTHREAD_H)
-    if(HAVE_DIRENT_H)
-        set(THREADS_PREFER_PTHREAD_FLAG ON)
-        find_package(Threads REQUIRED)
-        if(Threads_FOUND)
-            message("check file: 'pthread' has found")
-            set(LIBS_DEPS ${LIBS_DEPS} Threads::Threads)
-            add_definitions(-DHAVE_PTHREAD)
-        endif()
-    endif()
-    
     add_definitions("-D_EXPORTING")
-    include_directories("win")
 endif()
 
 if(NOT CMAKE_BUILD_TYPE)
@@ -105,10 +97,11 @@ endif()
 #     list(APPEND LIBS_DEPS OpenMP::OpenMP_CXX)
 # endif()
 
-if(WIN32 AND (CMAKE_C_COMPILER_ID STREQUAL "MSVC"))
-    file(GLOB SRC_LIST src/win/pHash.cpp src/bmbhash.cpp)
-else()
-    file(GLOB SRC_LIST src/pHash.cpp src/bmbhash.cpp)
+file(GLOB SRC_LIST src/pHash.cpp src/bmbhash.cpp)
+
+if(PHASH_MVP)
+    include_directories(${PROJECT_SOURCE_DIR}/ext)
+    list(APPEND SRC_LIST ext/pHash_mvp.cpp)
 endif()
 
 if(PHASH_EXT)
@@ -140,55 +133,8 @@ target_link_libraries(pHash ${LIBS_DEPS})
 install(TARGETS pHash DESTINATION ${PROJECT_SOURCE_DIR}/bin)
 
 if(PHASH_EXAMPLES)
-    set(EXAMPLEDIR examples)
-    include_directories(${CMAKE_CURRENT_SOURCE_DIR})
-    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src)
-
-    if(HAVE_IMAGE_HASH)
-        add_executable(TestImgHashWithFile "${PROJECT_SOURCE_DIR}/tests/imagehash-test-file.cpp")
-        target_link_libraries(TestImgHashWithFile pHash)
-        install(TARGETS TestImgHashWithFile DESTINATION ${PROJECT_SOURCE_DIR}/bin)
-
-        add_executable(TestImgHashWithCImg "${PROJECT_SOURCE_DIR}/tests/imagehash-test-cimg.cpp")
-        target_link_libraries(TestImgHashWithCImg pHash)
-        install(TARGETS TestImgHashWithCImg DESTINATION ${PROJECT_SOURCE_DIR}/bin)
-
-        add_executable(TestImgHashWithCImgMultipthread "${PROJECT_SOURCE_DIR}/tests/imagehash-test-cimg-multipthread.cpp")
-        target_link_libraries(TestImgHashWithCImgMultipthread pHash)
-        install(TARGETS TestImgHashWithCImgMultipthread DESTINATION ${PROJECT_SOURCE_DIR}/bin)
-
-        add_executable(TestImgHashWithCImgNoblur "${PROJECT_SOURCE_DIR}/tests/imagehash-test-cimg-no-blur.cpp")
-        target_link_libraries(TestImgHashWithCImgNoblur pHash)
-        install(TARGETS TestImgHashWithCImgNoblur DESTINATION ${PROJECT_SOURCE_DIR}/bin)
-    endif()
-
-    # if(HAVE_IMAGE_HASH)
-    # add_executable(TestDCT "${EXAMPLEDIR}/test_imagephash.cpp")
-    # target_link_libraries (TestDCT pHash)
-    # install(TARGETS TestDCT DESTINATION bin)
-
-    # add_executable(TestRadish "${EXAMPLEDIR}/test_radish.cpp")
-    # target_link_libraries (TestRadish pHash)
-    # install(TARGETS TestRadish DESTINATION bin)
-
-    # add_executable(TestMH "${EXAMPLEDIR}/test_mhimagehash.cpp")
-    # target_link_libraries (TestMH pHash)
-    # install(TARGETS TestMH DESTINATION bin)
-    # endif()
-
-
-    if(HAVE_AUDIO_HASH)
-    add_executable(TestAudio "${EXAMPLEDIR}/test_audiophash.cpp")
-    target_link_libraries (TestAudio pHash)
-    install(TARGETS TestAudio DESTINATION bin)
-    endif()
-
-    if(HAVE_VIDEO_HASH)
-    add_executable(TestVideoHash "${EXAMPLEDIR}/test_dctvideohash.cpp")
-    target_link_libraries (TestVideoHash pHash)
-    install(TARGETS TestVideoHash DESTINATION bin)
-    endif()
-endif() # PHASH_EXAMPLES
+    add_subdirectory(${PROJECT_SOURCE_DIR}/examples)
+endif(PHASH_EXAMPLES)
 
 if (MSVC)
      # Set the startup project .

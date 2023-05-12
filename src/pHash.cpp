@@ -42,10 +42,15 @@ int ph_num_threads()
 
 #else
 
+#ifdef __FreeBSD__
+#include <sys/sysctl.h>
+#include <sys/param.h>
+#endif
+
 int ph_num_threads()
 {
     int numCPU = 1;
-#ifdef __GLIBC__
+#ifndef __FreeBSD__
     numCPU = sysconf(_SC_NPROCESSORS_ONLN);
 #else
     int mib[2];
