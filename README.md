@@ -4,14 +4,17 @@ The basic pHash principle can be seen in [this](https://www.phash.org/).
 This project is mainly modified from the official project and starkdg-phash.
 
 Features of this project:
-
 1. More simplified, Multi-platform and generic (MinGW, NDK, MSVC, GCC...).
 2. Add 4-channel color support, the original project will crash.
 3. Fix some bugs in the official pHash project.
-4. Support c++11 multithread.
-6. Code optimization for faster speeds (mainly on image hash).
-7. Add fast Gaussian blur algorithm.(on testing)
-8. Algorithm acceleration for 2 images of the same size. (on testing)
+
+<br/>
+
+Mainly on image hash:
+1. Support c++11 multithread.
+2. Code optimization for faster speeds.
+3. Add fast Gaussian blur algorithm.(on testing)
+4. Algorithm acceleration for 2 images of the same size. (on testing)
 
 <br/>
 
