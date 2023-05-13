@@ -13,19 +13,19 @@ endif (MSVC)
 if(HAVE_IMAGE_HASH)
     add_executable(TestFileImgHash imagehash-test-file.cpp)
     target_link_libraries(TestFileImgHash pHash)
-    install(TARGETS TestFileImgHash DESTINATION ${INSTALL_DIR})
+    install(TARGETS TestFileImgHash DESTINATION bin)
 
     add_executable(TestCImgHash imagehash-test-cimg.cpp)
     target_link_libraries(TestCImgHash pHash)
-    install(TARGETS TestCImgHash DESTINATION ${INSTALL_DIR})
+    install(TARGETS TestCImgHash DESTINATION bin)
 
     add_executable(TestMultipthreadCImgHash imagehash-test-cimg-multipthread.cpp)
     target_link_libraries(TestMultipthreadCImgHash pHash)
-    install(TARGETS TestMultipthreadCImgHash DESTINATION ${INSTALL_DIR})
+    install(TARGETS TestMultipthreadCImgHash DESTINATION bin)
 
     add_executable(TestNoblurCImgHash imagehash-test-cimg-no-blur.cpp)
     target_link_libraries(TestNoblurCImgHash pHash)
-    install(TARGETS TestNoblurCImgHash DESTINATION ${INSTALL_DIR})
+    install(TARGETS TestNoblurCImgHash DESTINATION bin)
 endif()
 
 # if(HAVE_IMAGE_HASH)

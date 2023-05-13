@@ -25,7 +25,12 @@ if(WITH_VIDEO_HASH)
 endif()
 
 # CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/src/pHash.h.cmake ${CMAKE_CURRENT_SOURCE_DIR}/src/pHash.h)
-set(INSTALL_DIR ${PROJECT_SOURCE_DIR}/out)
+IF(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    message("not set Install prefix, use default")
+    SET(CMAKE_INSTALL_PREFIX ${PROJECT_SOURCE_DIR}/out CACHE PATH "Install prefix" FORCE)
+ENDIF()
+message("install path: ${CMAKE_INSTALL_PREFIX}")
+
 include_directories(${PROJECT_SOURCE_DIR}/src)
 
 # check file
@@ -44,7 +49,7 @@ else()
 endif()
 
 CHECK_INCLUDE_FILE_CXX("pthread.h" HAVE_PTHREAD_H)
-if(HAVE_DIRENT_H)
+if(HAVE_PTHREAD_H)
     set(THREADS_PREFER_PTHREAD_FLAG ON)
     find_package(Threads REQUIRED)
     if(Threads_FOUND)
@@ -55,17 +60,13 @@ if(HAVE_DIRENT_H)
 endif()
 
 if(NOT WIN32)
-    set(MMAN_FILE "")
     set(DIRENT_FILE "")
     EXEC_PROGRAM(uname ARGS -m OUTPUT_VARIABLE BUILD_SYSTEM)
     EXEC_PROGRAM(uname ARGS -s OUTPUT_VARIABLE CMAKE_SYSTEM_NAME)
 
     # on testing
     set(PHASH_MVP OFF)
-
 else()
-    include_directories(${PROJECT_SOURCE_DIR}/src/win)
-    set(MMAN_FILE "${PROJECT_SOURCE_DIR}/src/win/mman.cpp")
     add_definitions("-D_EXPORTING")
 endif()
 
@@ -109,6 +110,9 @@ if(PHASH_EXT)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
     include_directories(${PROJECT_SOURCE_DIR}/ext)
     list(APPEND SRC_LIST ext/pHash_ext.cpp)
+    if(WIN32)
+        list(APPEND SRC_LIST ext/win/mman.cpp)
+    endif()
 endif()
 
 if(HAVE_AUDIO_HASH)
@@ -121,16 +125,19 @@ if(HAVE_VIDEO_HASH)
     set(LIBS_DEPS ${LIBS_DEPS} avcodec avformat swscale avutil)
 endif()
 
+set(PHASH_PREFIX "bin")
 if(PHASH_DYNAMIC)
-	add_library(pHash SHARED ${MMAN_FILE} ${DIRENT_FILE} ${SRC_LIST})
+	add_library(pHash SHARED ${DIRENT_FILE} ${SRC_LIST})
 endif()
 
 if(PHASH_STATIC)
-	add_library(pHash STATIC ${MMAN_FILE} ${DIRENT_FILE} ${SRC_LIST})
+	add_library(pHash STATIC ${DIRENT_FILE} ${SRC_LIST})
+    set(PHASH_PREFIX "lib")
 endif()
 
 target_link_libraries(pHash ${LIBS_DEPS})
-install(TARGETS pHash DESTINATION ${PROJECT_SOURCE_DIR}/bin)
+install(TARGETS pHash DESTINATION ${PHASH_PREFIX})
+install(FILES src/pHash.h src/CImg.h DESTINATION include)
 
 if(PHASH_EXAMPLES)
     add_subdirectory(${PROJECT_SOURCE_DIR}/examples)

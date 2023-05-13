@@ -1,5 +1,10 @@
 #include "pHash_mvp.h"
 
+#ifdef _WIN32
+#include "win/mman.h"
+#else
+#include <sys/mman.h>
+#endif
 
 // #define MALLOC(x)   HeapAlloc(GetProcessHeap(),NULL,x)
 // #define CALLOC(x,y) HeapAlloc(GetProcessHeap(),HEAP_ZERO_MEMORY,(x)*(y))
