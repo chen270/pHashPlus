@@ -3,7 +3,7 @@
     pHash, the open source perceptual hash library
     Copyright (C) 2009 Aetilius, Inc.
     All rights reserved.
-
+ 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
@@ -23,11 +23,67 @@
 */
 
 #include "pHash.h"
+
+#ifdef HAVE_DIRENT_H
+#include <dirent.h>
+#else
+#include "win/dirent.h"
+#endif
+
 #ifdef HAVE_VIDEO_HASH
 #include "cimgffmpeg.h"
 #endif
 
-#include <cmath>
+#ifdef HAVE_PTHREAD
+#include <pthread.h>
+
+#ifdef __MINGW32__
+#include <windows.h>
+
+int ph_num_threads()
+{
+    SYSTEM_INFO sysinfo;
+    GetSystemInfo(&sysinfo);
+    return sysinfo.dwNumberOfProcessors;
+}
+
+#else
+
+#ifdef __FreeBSD__
+#include <sys/sysctl.h>
+#include <sys/param.h>
+#endif
+
+int ph_num_threads()
+{
+    int numCPU = 1;
+#ifndef __FreeBSD__
+    numCPU = sysconf(_SC_NPROCESSORS_ONLN);
+#else
+    int mib[2];
+    size_t len;
+
+    mib[0] = CTL_HW;
+    mib[1] = HW_AVAILCPU;
+
+    sysctl(mib, 2, &numCPU, &len, NULL, 0);
+
+    if (numCPU < 1)
+    {
+        mib[1] = HW_NCPU;
+        sysctl(mib, 2, &numCPU, &len, NULL, 0);
+
+        if (numCPU < 1)
+        {
+            numCPU = 1;
+        }
+    }
+
+#endif
+    return numCPU;
+}
+#endif // NOT __MINGW32__
+#endif
 
 const char phash_project[] = "%s. Copyright 2008-2010 Aetilius, Inc.";
 char phash_version[255] = {0};
@@ -51,15 +107,16 @@ int ph_radon_projections(const CImg<uint8_t> &img, int N, Projections &projs) {
     projs.R = new CImg<uint8_t>(N, D, 1, 1, 0);
     projs.nb_pix_perline = (int *)calloc(N, sizeof(int));
 
-    if (!projs.R || !projs.nb_pix_perline) return EXIT_FAILURE;
+    if (!projs.R || !projs.nb_pix_perline) return -1;
 
     projs.size = N;
 
     CImg<uint8_t> *ptr_radon_map = projs.R;
     int *nb_per_line = projs.nb_pix_perline;
+    double factorPi = cimg::PI / 180.0;
 
     for (int k = 0; k < N / 4 + 1; k++) {
-        double theta = k * cimg::PI / N;
+        double theta = k * factorPi;
         double alpha = std::tan(theta);
         for (int x = 0; x < D; x++) {
             double y = alpha * (x - x_off);
@@ -77,7 +134,7 @@ int ph_radon_projections(const CImg<uint8_t> &img, int N, Projections &projs) {
     }
     int j = 0;
     for (int k = 3 * N / 4; k < N; k++) {
-        double theta = k * cimg::PI / N;
+        double theta = k * factorPi;
         double alpha = std::tan(theta);
         for (int x = 0; x < D; x++) {
             double y = alpha * (x - x_off);
@@ -97,50 +154,63 @@ int ph_radon_projections(const CImg<uint8_t> &img, int N, Projections &projs) {
         j += 2;
     }
 
-    return EXIT_SUCCESS;
+    return 0;
 }
-int ph_feature_vector(const Projections &projs, Features &fv) {
-    CImg<uint8_t> *ptr_map = projs.R;
-    CImg<uint8_t> projection_map = *ptr_map;
-    int *nb_perline = projs.nb_pix_perline;
-    int N = projs.size;
-    int D = projection_map.height();
+
+int ph_feature_vector(const Projections &projs, Features &fv)
+{
+    const CImg<uint8_t> &projection_map = *(projs.R);
+    const int *nb_perline = projs.nb_pix_perline;
+    const int N = projs.size;
+    const int D = projection_map.height();
 
     fv.features = (double *)malloc(N * sizeof(double));
     fv.size = N;
-    if (!fv.features) return EXIT_FAILURE;
+    if (!fv.features)
+        return -1;
 
     double *feat_v = fv.features;
     double sum = 0.0;
     double sum_sqd = 0.0;
-    for (int k = 0; k < N; k++) {
+    for (int k = 0; k < N; ++k)
+    {
         double line_sum = 0.0;
         double line_sum_sqd = 0.0;
         int nb_pixels = nb_perline[k];
-        for (int i = 0; i < D; i++) {
-            line_sum += projection_map(k, i);
-            line_sum_sqd += projection_map(k, i) * projection_map(k, i);
+        if (nb_pixels == 0)
+        {
+            feat_v[k] = 0.0;
+            continue;
         }
-        feat_v[k] = (line_sum_sqd / nb_pixels) -
-                    (line_sum * line_sum) / (nb_pixels * nb_pixels);
+        for (int i = 0; i < D; ++i)
+        {
+            const double pixel_value = projection_map(k, i);
+            line_sum += pixel_value;
+            line_sum_sqd += pixel_value * pixel_value;
+        }
+        const double nb_pixels_inv = 1.0 / nb_pixels;
+        const double mean = line_sum * nb_pixels_inv;
+        feat_v[k] = line_sum_sqd * nb_pixels_inv - mean * mean;
         sum += feat_v[k];
         sum_sqd += feat_v[k] * feat_v[k];
     }
-    double mean = sum / N;
-    double var = sqrt((sum_sqd / N) - (sum * sum) / (N * N));
+    const double mean = sum / N;
+    const double var = 1.0 / sqrt((sum_sqd / N) - mean * mean);
 
-    for (int i = 0; i < N; i++) {
-        feat_v[i] = (feat_v[i] - mean) / var;
+    for (int i = 0; i < N; ++i)
+    {
+        feat_v[i] = (feat_v[i] - mean) * var;
     }
 
-    return EXIT_SUCCESS;
+    return 0;
 }
+
 int ph_dct(const Features &fv, Digest &digest) {
-    int N = fv.size;
+    const int N = fv.size;
     const int nb_coeffs = 40;
 
     digest.coeffs = (uint8_t *)malloc(nb_coeffs * sizeof(uint8_t));
-    if (!digest.coeffs) return EXIT_FAILURE;
+    if (!digest.coeffs) return -1;
 
     digest.size = nb_coeffs;
 
@@ -149,33 +219,32 @@ int ph_dct(const Features &fv, Digest &digest) {
     uint8_t *D = digest.coeffs;
 
     double D_temp[nb_coeffs];
-    double max = 0.0;
-    double min = 0.0;
-    double sqrt_n = sqrt((double)N);
-    for (int k = 0; k < nb_coeffs; k++) {
+    double D_max = 0.0;
+    double D_min = 0.0;
+    const double sqrt_n = 1.0 / sqrt((double)N);
+    const double PI_2N = cimg::PI / (2 * N);
+    const double SQRT_TWO_OVER_SQRT_N = SQRT_TWO * sqrt_n;
+
+    for (int k = 0; k < nb_coeffs; ++k) {
         double sum = 0.0;
-        for (int n = 0; n < N; n++) {
-            double temp = R[n] * cos((cimg::PI * (2 * n + 1) * k) / (2 * N));
-            sum += temp;
+        for (int n = 0; n < N; ++n) {
+            sum += R[n] * cos(PI_2N * (2 * n + 1) * k);
         }
-        if (k == 0)
-            D_temp[k] = sum / sqrt_n;
-        else
-            D_temp[k] = sum * SQRT_TWO / sqrt_n;
-        if (D_temp[k] > max) max = D_temp[k];
-        if (D_temp[k] < min) min = D_temp[k];
+        D_temp[k] = sum * ((k == 0) ? sqrt_n : SQRT_TWO_OVER_SQRT_N);
+        D_max = D_max > D_temp[k] ? D_max : D_temp[k];
+        D_min = D_min < D_temp[k] ? D_min : D_temp[k];
     }
 
     for (int i = 0; i < nb_coeffs; i++) {
-        D[i] = (uint8_t)(UCHAR_MAX * (D_temp[i] - min) / (max - min));
+        D[i] = (uint8_t)(UCHAR_MAX * (D_temp[i] - D_min) / (D_max - D_min));
     }
 
-    return EXIT_SUCCESS;
+    return 0;
 }
 
 int ph_crosscorr(const Digest &x, const Digest &y, double &pcc,
                  double threshold) {
-    int N = y.size;
+    const int N = y.size;
     int result = 0;
 
     uint8_t *x_coeffs = x.coeffs;
@@ -188,47 +257,54 @@ int ph_crosscorr(const Digest &x, const Digest &y, double &pcc,
         sumx += x_coeffs[i];
         sumy += y_coeffs[i];
     }
-    double meanx = sumx / N;
-    double meany = sumy / N;
-    double max = 0;
+    const double meanx = sumx / N;
+    const double meany = sumy / N;
+    double d_max = 0;
     for (int d = 0; d < N; d++) {
         double num = 0.0;
         double denx = 0.0;
         double deny = 0.0;
         for (int i = 0; i < N; i++) {
-            num += (x_coeffs[i] - meanx) * (y_coeffs[(N + i - d) % N] - meany);
-            denx += pow((x_coeffs[i] - meanx), 2);
-            deny += pow((y_coeffs[(N + i - d) % N] - meany), 2);
+            const int idx = (N + i - d) % N;
+            num += (x_coeffs[i] - meanx) * (y_coeffs[idx] - meany);
+            denx += ((x_coeffs[i] - meanx) * (x_coeffs[i] - meanx));
+            deny += ((y_coeffs[idx] - meany) * (y_coeffs[idx] - meany));
         }
         r[d] = num / sqrt(denx * deny);
-        if (r[d] > max) max = r[d];
+        if (r[d] > d_max) d_max = r[d];
     }
     delete[] r;
-    pcc = max;
-    if (max > threshold) result = 1;
+    pcc = d_max;
+    if (d_max > threshold) result = 1;
 
     return result;
 }
 
-#ifdef max
-#undef max
-#endif
-
 int _ph_image_digest(const CImg<uint8_t> &img, double sigma, double gamma,
                      Digest &digest, int N) {
-    int result = EXIT_FAILURE;
+    int result = -1;
     CImg<uint8_t> graysc;
-    if (img.spectrum() >= 3) {
+    if (img.spectrum() > 3)
+    {
+        CImg<> rgb = img.get_shared_channels(0, 2);
+        graysc = rgb.RGBtoYCbCr().channel(0);
+    }
+    else if (img.spectrum() == 3)
+    {
         graysc = img.get_RGBtoYCbCr().channel(0);
-    } else if (img.spectrum() == 1) {
+    }
+    else if (img.spectrum() == 1)
+    {
         graysc = img;
-    } else {
+    }
+    else
+    {
         return result;
     }
 
     graysc.blur((float)sigma);
 
-    (graysc / graysc.max()).pow(gamma);
+    // (graysc / graysc.max()).pow(gamma);
 
     Projections projs;
     if (ph_radon_projections(graysc, N, projs) < 0) goto cleanup;
@@ -238,7 +314,7 @@ int _ph_image_digest(const CImg<uint8_t> &img, double sigma, double gamma,
 
     if (ph_dct(features, digest) < 0) goto cleanup;
 
-    result = EXIT_SUCCESS;
+    result = 0;
 
 cleanup:
     free(projs.nb_pix_perline);
@@ -247,8 +323,6 @@ cleanup:
     delete projs.R;
     return result;
 }
-
-#define max(a, b) (((a) > (b)) ? (a) : (b))
 
 int ph_image_digest(const char *file, double sigma, double gamma,
                     Digest &digest, int N) {
@@ -302,6 +376,40 @@ static CImg<float> ph_dct_matrix(const int N) {
 }
 
 static const CImg<float> dct_matrix = ph_dct_matrix(32);
+int _ph_dct_imagehash(const CImg<uint8_t> &src, ulong64 &hash) {
+    if (src.is_empty()) {
+        return -1;
+    }
+    CImg<float> meanfilter(7, 7, 1, 1, 1);
+    CImg<float> img;
+
+    if (src.spectrum() > 3){
+        CImg<> rgb = src.get_shared_channels(0, 2);
+        img = rgb.RGBtoYCbCr().channel(0).get_convolve(meanfilter);
+    } else if (src.spectrum() == 3){
+        img = src.get_RGBtoYCbCr().channel(0).get_convolve(meanfilter);
+    } else {
+        img = src.get_channel(0).get_convolve(meanfilter);
+    }
+
+    img.resize(32, 32);
+    const CImg<float> &C = dct_matrix;
+    CImg<float> Ctransp = C.get_transpose();
+
+    CImg<float> dctImage = (C)*img * Ctransp;
+
+    CImg<float> subsec = dctImage.crop(1, 1, 8, 8).unroll('x');
+
+    float median = subsec.median();
+    hash = 0;
+    for (int i = 0; i < 64; i++, hash <<= 1) {
+        float current = subsec(i);
+        if (current > median) hash |= 0x01;
+    }
+
+    return 0;
+}
+
 int ph_dct_imagehash(const char *file, ulong64 &hash) {
     if (!file) {
         return -1;
@@ -314,15 +422,12 @@ int ph_dct_imagehash(const char *file, ulong64 &hash) {
     }
     CImg<float> meanfilter(7, 7, 1, 1, 1);
     CImg<float> img;
-    if (src.spectrum() == 3) {
+
+    if (src.spectrum() > 3){
+        CImg<> rgb = src.get_shared_channels(0, 2);
+        img = rgb.RGBtoYCbCr().channel(0).get_convolve(meanfilter);
+    } else if (src.spectrum() == 3){
         img = src.RGBtoYCbCr().channel(0).get_convolve(meanfilter);
-    } else if (src.spectrum() == 4) {
-        int width = src.width();
-        int height = src.height();
-        img = src.crop(0, 0, 0, 0, width - 1, height - 1, 0, 2)
-                  .RGBtoYCbCr()
-                  .channel(0)
-                  .get_convolve(meanfilter);
     } else {
         img = src.channel(0).get_convolve(meanfilter);
     }
@@ -344,6 +449,77 @@ int ph_dct_imagehash(const char *file, ulong64 &hash) {
 
     return 0;
 }
+
+#ifdef HAVE_PTHREAD
+void *ph_image_thread(void *p)
+{
+    slice *s = (slice *)p;
+    for (int i = 0; i < s->n; ++i)
+    {
+        DP *dp = (DP *)s->hash_p[i];
+        ulong64 hash;
+        int ret = ph_dct_imagehash(dp->id, hash);
+        dp->hash = (ulong64 *)malloc(sizeof(hash));
+        memcpy(dp->hash, &hash, sizeof(hash));
+        dp->hash_length = 1;
+    }
+    return NULL;
+}
+
+DP **ph_dct_image_hashes(char *files[], int count, int threads)
+{
+    if (!files || count <= 0)
+        return NULL;
+
+    int num_threads;
+    if (threads > count)
+    {
+        num_threads = count;
+    }
+    else if (threads > 0)
+    {
+        num_threads = threads;
+    }
+    else
+    {
+        num_threads = ph_num_threads();
+    }
+
+    DP **hashes = (DP **)malloc(count * sizeof(DP *));
+
+    for (int i = 0; i < count; ++i)
+    {
+        hashes[i] = (DP *)malloc(sizeof(DP));
+        hashes[i]->id = strdup(files[i]);
+    }
+
+    pthread_t thds[num_threads];
+
+    int rem = count % num_threads;
+    int start = 0;
+    int off = 0;
+    slice *s = new slice[num_threads];
+    for (int n = 0; n < num_threads; ++n)
+    {
+        off = (int)floor((count / (float)num_threads) + (rem > 0 ? num_threads - (count % num_threads) : 0));
+
+        s[n].hash_p = &hashes[start];
+        s[n].n = off;
+        s[n].hash_params = NULL;
+        start += off;
+        --rem;
+        pthread_create(&thds[n], NULL, ph_image_thread, &s[n]);
+    }
+    for (int i = 0; i < num_threads; ++i)
+    {
+        pthread_join(thds[i], NULL);
+    }
+    delete[] s;
+
+    return hashes;
+}
+#endif
+
 
 #endif
 
@@ -560,8 +736,84 @@ ulong64 *ph_dct_videohash(const char *filename, int &Length) {
     return hash;
 }
 
-double ph_dct_videohash_dist(ulong64 *hashA, int N1, ulong64 *hashB, int N2,
-                             int threshold) {
+#ifdef HAVE_PTHREAD
+void *ph_video_thread(void *p)
+{
+    slice *s = (slice *)p;
+    for (int i = 0; i < s->n; ++i)
+    {
+        DP *dp = (DP *)s->hash_p[i];
+        int N;
+        ulong64 *hash = ph_dct_videohash(dp->id, N);
+        if (hash)
+        {
+            dp->hash = hash;
+            dp->hash_length = N;
+        }
+        else
+        {
+            dp->hash = NULL;
+            dp->hash_length = 0;
+        }
+    }
+}
+
+DP **ph_dct_video_hashes(char *files[], int count, int threads)
+{
+    if (!files || count <= 0)
+        return NULL;
+
+    int num_threads;
+    if (threads > count)
+    {
+        num_threads = count;
+    }
+    else if (threads > 0)
+    {
+        num_threads = threads;
+    }
+    else
+    {
+        num_threads = ph_num_threads();
+    }
+
+    DP **hashes = (DP **)malloc(count * sizeof(DP *));
+
+    for (int i = 0; i < count; ++i)
+    {
+        hashes[i] = (DP *)malloc(sizeof(DP));
+        hashes[i]->id = strdup(files[i]);
+    }
+
+    pthread_t thds[num_threads];
+
+    int rem = count % num_threads;
+    int start = 0;
+    int off = 0;
+    slice *s = new slice[num_threads];
+    for (int n = 0; n < num_threads; ++n)
+    {
+        off = (int)floor((count / (float)num_threads) + (rem > 0 ? num_threads - (count % num_threads) : 0));
+
+        s[n].hash_p = &hashes[start];
+        s[n].n = off;
+        s[n].hash_params = NULL;
+        start += off;
+        --rem;
+        pthread_create(&thds[n], NULL, ph_video_thread, &s[n]);
+    }
+    for (int i = 0; i < num_threads; ++i)
+    {
+        pthread_join(thds[i], NULL);
+    }
+    delete[] s;
+
+    return hashes;
+}
+#endif
+
+double ph_dct_videohash_dist(ulong64 *hashA, int N1, ulong64 *hashB, int N2, int threshold){
+
     int den = (N1 <= N2) ? N1 : N2;
     int C[N1 + 1][N2 + 1];
 
@@ -590,9 +842,25 @@ double ph_dct_videohash_dist(ulong64 *hashA, int N1, ulong64 *hashB, int N2,
 
 #endif
 
-int ph_hamming_distance(const ulong64 hash1, const ulong64 hash2) {
+#ifdef _MSC_VER
+static const ulong64 m1 = 0x5555555555555555ULL;
+static const ulong64 m2 = 0x3333333333333333ULL;
+static const ulong64 h01 = 0x0101010101010101ULL;
+static const ulong64 m4 = 0x0f0f0f0f0f0f0f0fULL;
+#endif // _MSC_VER
+
+int ph_hamming_distance(const ulong64 hash1, const ulong64 hash2)
+{
+#ifdef _MSC_VER
+    ulong64 x = hash1 ^ hash2;
+    x -= (x >> 1) & m1;
+    x = (x & m2) + ((x >> 2) & m2);
+    x = (x + (x >> 4)) & m4;
+    return int((x * h01) >> 56);
+#else
     ulong64 x = hash1 ^ hash2;
     return __builtin_popcountll(x);
+#endif
 }
 
 #ifdef HAVE_IMAGE_HASH
@@ -613,6 +881,82 @@ CImg<float> *GetMHKernel(float alpha, float level) {
     return pkernel;
 }
 
+uint8_t *_ph_mh_imagehash(const CImg<uint8_t> &src, int &N, float alpha, float lvl) {
+    if (src.is_empty()) {
+        return NULL;
+    }
+    uint8_t *hash = (unsigned char *)malloc(72 * sizeof(uint8_t));
+    N = 72;
+
+    CImg<uint8_t> img;
+    if (img.spectrum() > 3)
+    {
+        CImg<> rgb = src.get_shared_channels(0, 2);
+        img = rgb.get_RGBtoYCbCr()
+                  .channel(0)
+                  .blur(1.0)
+                  .resize(512, 512, 1, 1, 5)
+                  .get_equalize(256);
+    }
+    else if (src.spectrum() == 3) {
+        img = src.get_RGBtoYCbCr()
+                  .channel(0)
+                  .blur(1.0)
+                  .resize(512, 512, 1, 1, 5)
+                  .get_equalize(256);
+    } else {
+        img = src.get_channel(0)
+                  .get_blur(1.0)
+                  .resize(512, 512, 1, 1, 5)
+                  .get_equalize(256);
+    }
+    // src.clear();
+
+    CImg<float> *pkernel = GetMHKernel(alpha, lvl);
+    CImg<float> fresp = img.get_correlate(*pkernel);
+    img.clear();
+    fresp.normalize(0, 1.0);
+    CImg<float> blocks(31, 31, 1, 1, 0);
+    for (int rindex = 0; rindex < 31; rindex++) {
+        for (int cindex = 0; cindex < 31; cindex++) {
+            blocks(rindex, cindex) =
+                fresp
+                    .get_crop(rindex * 16, cindex * 16, rindex * 16 + 16 - 1,
+                              cindex * 16 + 16 - 1)
+                    .sum();
+        }
+    }
+    int hash_index;
+    int nb_ones = 0, nb_zeros = 0;
+    int bit_index = 0;
+    unsigned char hashbyte = 0;
+    for (int rindex = 0; rindex < 31 - 2; rindex += 4) {
+        CImg<float> subsec;
+        for (int cindex = 0; cindex < 31 - 2; cindex += 4) {
+            subsec = blocks.get_crop(cindex, rindex, cindex + 2, rindex + 2)
+                         .unroll('x');
+            float ave = subsec.mean();
+            cimg_forX(subsec, I) {
+                hashbyte <<= 1;
+                if (subsec(I) > ave) {
+                    hashbyte |= 0x01;
+                    nb_ones++;
+                } else {
+                    nb_zeros++;
+                }
+                bit_index++;
+                if ((bit_index % 8) == 0) {
+                    hash_index = (int)(bit_index / 8) - 1;
+                    hash[hash_index] = hashbyte;
+                    hashbyte = 0x00;
+                }
+            }
+        }
+    }
+
+    return hash;
+}
+
 uint8_t *ph_mh_imagehash(const char *filename, int &N, float alpha, float lvl) {
     if (filename == NULL) {
         return NULL;
@@ -623,7 +967,11 @@ uint8_t *ph_mh_imagehash(const char *filename, int &N, float alpha, float lvl) {
     CImg<uint8_t> src(filename);
     CImg<uint8_t> img;
 
-    if (src.spectrum() == 3) {
+    if (src.spectrum() > 3)
+    {
+        CImg<> rgb = src.get_shared_channels(0, 2);
+        img = rgb.get_RGBtoYCbCr().channel(0).blur(1.0).resize(512,512,1,1,5).get_equalize(256);
+    } else if (src.spectrum() == 3) {
         img = src.get_RGBtoYCbCr()
                   .channel(0)
                   .blur(1.0)
@@ -682,6 +1030,48 @@ uint8_t *ph_mh_imagehash(const char *filename, int &N, float alpha, float lvl) {
     return hash;
 }
 #endif
+
+char **ph_readfilenames(const char *dirname, int &count)
+{
+    count = 0;
+    struct dirent *dir_entry;
+    DIR *dir = opendir(dirname);
+    if (!dir)
+        return NULL;
+
+    /*count files */
+    while ((dir_entry = readdir(dir)) != NULL)
+    {
+        if (strcmp(dir_entry->d_name, ".") && strcmp(dir_entry->d_name, ".."))
+            count++;
+    }
+
+    /* alloc list of files */
+    char **files = (char **)malloc(count * sizeof(*files));
+    if (!files)
+        return NULL;
+
+    errno = 0;
+    int index = 0;
+    char path[1024];
+    path[0] = '\0';
+    rewinddir(dir);
+    while ((dir_entry = readdir(dir)) != 0)
+    {
+        if (strcmp(dir_entry->d_name, ".") && strcmp(dir_entry->d_name, ".."))
+        {
+            strcat(path, dirname);
+            strcat(path, "/");
+            strcat(path, dir_entry->d_name);
+            files[index++] = strdup(path);
+        }
+        path[0] = '\0';
+    }
+    if (errno)
+        return NULL;
+    closedir(dir);
+    return files;
+}
 
 int ph_bitcount8(uint8_t val) {
     int num = 0;
