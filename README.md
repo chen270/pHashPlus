@@ -9,9 +9,9 @@ Features of this project:
 2. Add 4-channel color support, the original project will crash.
 3. Fix some bugs in the official pHash project.
 4. Support c++11 multithread.
-6. Add fast Gaussian blur algorithm.
-7. Code optimization for faster speeds.
-8. Algorithm acceleration for 2 images of the same size. (on testing).
+6. Code optimization for faster speeds (mainly on image hash).
+7. Add fast Gaussian blur algorithm.(on testing)
+8. Algorithm acceleration for 2 images of the same size. (on testing)
 
 <br/>
 
