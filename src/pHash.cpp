@@ -23,6 +23,13 @@
 */
 
 #include "pHash.h"
+
+#ifdef HAVE_DIRENT_H
+#include <dirent.h>
+#else
+#include "win/dirent.h"
+#endif
+
 #ifdef HAVE_VIDEO_HASH
 #include "cimgffmpeg.h"
 #endif

@@ -25,34 +25,7 @@
 #ifndef _PHASH_H
 #define _PHASH_H
 
-
-#include <limits.h>
-#include <math.h>
-
-#ifdef HAVE_DIRENT_H
-#include <dirent.h>
-#else
-#include "win/dirent.h"
-#endif
-
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-
-#include <errno.h>
-#include <sys/types.h>
 #include <sys/stat.h>
-
-#ifdef _WIN32
-#include "win/mman.h"
-#else
-#include <sys/mman.h>
-#endif
-
-#include <fcntl.h>
-#include <string.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 #define __STDC_CONSTANT_MACROS
 
