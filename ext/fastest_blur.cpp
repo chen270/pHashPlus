@@ -2,7 +2,7 @@
 // Copyright (C) 2014 Ivan Kutskir
 // All Rights Reserved
 // You may use, distribute and modify this code under the
-// terms of the MIT license. For further details please refer 
+// terms of the MIT license. For further details please refer
 // to : https://mit-license.org/
 //
 
@@ -11,24 +11,24 @@
 //! \author Basile Fraboni
 //! \date 2017
 //!
-//! \brief The software is a C++ implementation of a fast  
-//! Gaussian blur algorithm by Ivan Kutskir. For further details 
-//! please refer to : 
+//! \brief The software is a C++ implementation of a fast
+//! Gaussian blur algorithm by Ivan Kutskir. For further details
+//! please refer to :
 //! http://blog.ivank.net/fastest-gaussian-blur.html
 //!
 //! Unsigned char version
 //!
 
-#include <cmath>
 #include <algorithm>
+#include <cmath>
 
 typedef unsigned char uchar;
 
 //!
-//! \fn void std_to_box(int boxes[], float sigma, int n)  
+//! \fn void std_to_box(int boxes[], float sigma, int n)
 //!
-//! \brief this function converts the standard deviation of 
-//! Gaussian blur into dimensions of boxes for box blur. For 
+//! \brief this function converts the standard deviation of
+//! Gaussian blur into dimensions of boxes for box blur. For
 //! further details please refer to :
 //! https://www.peterkovesi.com/matlabfns/#integral
 //! https://www.peterkovesi.com/papers/FastGaussianSmoothing.pdf
@@ -37,8 +37,7 @@ typedef unsigned char uchar;
 //! \param[in] sigma    Gaussian standard deviation
 //! \param[in] n        number of boxes
 //!
-void std_to_box(int boxes[], float sigma, int n)
-{
+void std_to_box(int boxes[], float sigma, int n) {
     // ideal filter width
     float wi = std::sqrt((12 * sigma * sigma / n) + 1);
     int wl = std::floor(wi);
@@ -54,9 +53,9 @@ void std_to_box(int boxes[], float sigma, int n)
 }
 
 //!
-//! \fn void horizontal_blur(uchar * in, uchar * out, int w,int h, int r)   
+//! \fn void horizontal_blur(uchar * in, uchar * out, int w,int h, int r)
 //!
-//! \brief this function performs the horizontal blur pass for box blur. 
+//! \brief this function performs the horizontal blur pass for box blur.
 //!
 //! \param[in,out] in       source channel
 //! \param[in,out] out      target channel
@@ -64,30 +63,24 @@ void std_to_box(int boxes[], float sigma, int n)
 //! \param[in] h            image height
 //! \param[in] r            box dimension
 //!
-void horizontal_blur(uchar *in, uchar *out, int w, int h, int r)
-{
+void horizontal_blur(uchar *in, uchar *out, int w, int h, int r) {
     float iarr = 1.f / (r + r + 1);
 #pragma omp parallel for
-    for (int i = 0; i < h; ++i)
-    {
+    for (int i = 0; i < h; ++i) {
         int ti = i * w, li = ti, ri = ti + r;
         uchar fv = in[ti], lv = in[ti + w - 1], val = (r + 1) * fv;
-        for (int j = 0; j < r; ++j)
-        {
+        for (int j = 0; j < r; ++j) {
             val += in[ti + j];
         }
-        for (int j = 0; j <= r; ++j)
-        {
+        for (int j = 0; j <= r; ++j) {
             val += in[ri++] - fv;
             out[ti++] = std::round(val * iarr);
         }
-        for (int j = r + 1; j < w - r; ++j)
-        {
+        for (int j = r + 1; j < w - r; ++j) {
             val += in[ri++] - in[li++];
             out[ti++] = std::round(val * iarr);
         }
-        for (int j = w - r; j < w; ++j)
-        {
+        for (int j = w - r; j < w; ++j) {
             val += lv - in[li++];
             out[ti++] = std::round(val * iarr);
         }
@@ -95,9 +88,9 @@ void horizontal_blur(uchar *in, uchar *out, int w, int h, int r)
 }
 
 //!
-//! \fn void total_blur(uchar * in, uchar * out, int w, int h, int r)   
+//! \fn void total_blur(uchar * in, uchar * out, int w, int h, int r)
 //!
-//! \brief this function performs the total blur pass for box blur. 
+//! \brief this function performs the total blur pass for box blur.
 //!
 //! \param[in,out] in       source channel
 //! \param[in,out] out      target channel
@@ -105,35 +98,29 @@ void horizontal_blur(uchar *in, uchar *out, int w, int h, int r)
 //! \param[in] h            image height
 //! \param[in] r            box dimension
 //!
-void total_blur(uchar *in, uchar *out, int w, int h, int r)
-{
+void total_blur(uchar *in, uchar *out, int w, int h, int r) {
     float iarr = 1.f / (r + r + 1);
 #pragma omp parallel for
-    for (int i = 0; i < w; ++i)
-    {
+    for (int i = 0; i < w; ++i) {
         int ti = i, li = ti, ri = ti + r * w;
         uchar fv = in[ti], lv = in[ti + w * (h - 1)], val = (r + 1) * fv;
-        for (int j = 0; j < r; ++j)
-        {
+        for (int j = 0; j < r; ++j) {
             val += in[ti + j * w];
         }
-        for (int j = 0; j <= r; ++j)
-        {
+        for (int j = 0; j <= r; ++j) {
             val += in[ri] - fv;
             out[ti] = std::round(val * iarr);
             ri += w;
             ti += w;
         }
-        for (int j = r + 1; j < h - r; ++j)
-        {
+        for (int j = r + 1; j < h - r; ++j) {
             val += in[ri] - in[li];
             out[ti] = std::round(val * iarr);
             li += w;
             ri += w;
             ti += w;
         }
-        for (int j = h - r; j < h; ++j)
-        {
+        for (int j = h - r; j < h; ++j) {
             val += lv - in[li];
             out[ti] = std::round(val * iarr);
             li += w;
@@ -143,9 +130,9 @@ void total_blur(uchar *in, uchar *out, int w, int h, int r)
 }
 
 //!
-//! \fn void box_blur(uchar * in, uchar * out, int w, int h, int r)   
+//! \fn void box_blur(uchar * in, uchar * out, int w, int h, int r)
 //!
-//! \brief this function performs a box blur pass. 
+//! \brief this function performs a box blur pass.
 //!
 //! \param[in,out] in       source channel
 //! \param[in,out] out      target channel
@@ -153,21 +140,22 @@ void total_blur(uchar *in, uchar *out, int w, int h, int r)
 //! \param[in] h            image height
 //! \param[in] r            box dimension
 //!
-void box_blur(uchar *& in, uchar *& out, int w, int h, int r) 
-{
+void box_blur(uchar *&in, uchar *&out, int w, int h, int r) {
     std::swap(in, out);
     horizontal_blur(out, in, w, h, r);
     total_blur(in, out, w, h, r);
-    // Note to myself : 
-    // here we could go anisotropic with different radiis rx,ry in HBlur and TBlur
+    // Note to myself :
+    // here we could go anisotropic with different radiis rx,ry in HBlur and
+    // TBlur
 }
 
 //!
-//! \fn void fast_gaussian_blur(uchar * in, uchar * out, int w, int h, float sigma)   
+//! \fn void fast_gaussian_blur(uchar * in, uchar * out, int w, int h, float
+//! sigma)
 //!
 //! \brief this function performs a fast Gaussian blur. Applying several
-//! times box blur tends towards a true Gaussian blur. Three passes are sufficient
-//! for good results. For further details please refer to :  
+//! times box blur tends towards a true Gaussian blur. Three passes are
+//! sufficient for good results. For further details please refer to :
 //! http://blog.ivank.net/fastest-gaussian-blur.html
 //!
 //! \param[in,out] in       source channel
@@ -176,8 +164,7 @@ void box_blur(uchar *& in, uchar *& out, int w, int h, int r)
 //! \param[in] h            image height
 //! \param[in] sigma        gaussian std dev
 //!
-void fast_gaussian_blur(unsigned char *&in, unsigned char *&out, int w, int h, float sigma)
-{
+void fast_gaussian_blur(unsigned char *&in, unsigned char *&out, int w, int h, float sigma) {
     // sigma conversion to box dimensions
     int boxes[3];
     std_to_box(boxes, sigma, 3);
@@ -188,8 +175,7 @@ void fast_gaussian_blur(unsigned char *&in, unsigned char *&out, int w, int h, f
 
 // float sigma = 1.0, r = 3, box is fixed value
 static int s1_boxes[3] = {0, 0, 1};
-void fast_gaussian_blur_1sigma_3boxes(unsigned char *&in, unsigned char *&out, int w, int h)
-{
+void fast_gaussian_blur_1sigma_3boxes(unsigned char *&in, unsigned char *&out, int w, int h) {
     box_blur(in, out, w, h, s1_boxes[0]);
     box_blur(out, in, w, h, s1_boxes[1]);
     box_blur(in, out, w, h, s1_boxes[2]);
@@ -198,12 +184,12 @@ void fast_gaussian_blur_1sigma_3boxes(unsigned char *&in, unsigned char *&out, i
 #if 0
 //! \code{.cpp}
 int main(int argc, char * argv[])
-{   
+{
     if( argc < 2 ) exit(1);
     const char * image_file = argv[1];
     const float sigma = argc > 2 ? std::atof(argv[2]) : 3.;
     const char * output_file = argc > 3 ? argv[3] : "blur.png";
-    
+
     // image loading
     int width, height, channels;
     unsigned char * image_data = stbi_load(argv[1], &width, &height, &channels, 0);
@@ -216,12 +202,12 @@ int main(int argc, char * argv[])
 
     // copy data
     int size = width * height;
-    
+
     // output channels r,g,b
     int * newb = new int[size];
     int * newg = new int[size];
     int * newr = new int[size];
-    
+
     // input channels r,g,b
     int * oldb = new int[size];
     int * oldg = new int[size];
@@ -265,7 +251,7 @@ int main(int argc, char * argv[])
     {
         if( ext != "png" )
         {
-            std::cout << "format '" << ext << "' not supported writing default .png" << std::endl; 
+            std::cout << "format '" << ext << "' not supported writing default .png" << std::endl;
             file = file.substr(0, file.size()-4) + std::string(".png");
         }
         stbi_write_png(file.c_str(), width, height, channels, image_data, channels*width);

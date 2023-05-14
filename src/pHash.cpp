@@ -3,7 +3,7 @@
     pHash, the open source perceptual hash library
     Copyright (C) 2009 Aetilius, Inc.
     All rights reserved.
- 
+
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
@@ -40,8 +40,7 @@
 #ifdef __MINGW32__
 #include <windows.h>
 
-int ph_num_threads()
-{
+int ph_num_threads() {
     SYSTEM_INFO sysinfo;
     GetSystemInfo(&sysinfo);
     return sysinfo.dwNumberOfProcessors;
@@ -50,12 +49,12 @@ int ph_num_threads()
 #else
 
 #ifdef __FreeBSD__
-#include <sys/sysctl.h>
 #include <sys/param.h>
+#include <sys/sysctl.h>
+
 #endif
 
-int ph_num_threads()
-{
+int ph_num_threads() {
     int numCPU = 1;
 #ifndef __FreeBSD__
     numCPU = sysconf(_SC_NPROCESSORS_ONLN);
@@ -68,13 +67,11 @@ int ph_num_threads()
 
     sysctl(mib, 2, &numCPU, &len, NULL, 0);
 
-    if (numCPU < 1)
-    {
+    if (numCPU < 1) {
         mib[1] = HW_NCPU;
         sysctl(mib, 2, &numCPU, &len, NULL, 0);
 
-        if (numCPU < 1)
-        {
+        if (numCPU < 1) {
             numCPU = 1;
         }
     }
@@ -82,16 +79,16 @@ int ph_num_threads()
 #endif
     return numCPU;
 }
-#endif // NOT __MINGW32__
+#endif  // NOT __MINGW32__
 #endif
 
 const char phash_project[] = "%s. Copyright 2008-2010 Aetilius, Inc.";
 char phash_version[255] = {0};
 const char *ph_about() {
-    if (phash_version[0] != 0) return phash_version;
+    if (phash_version[0] != 0)
+        return phash_version;
 
-    snprintf(phash_version, sizeof(phash_version), phash_project,
-             PACKAGE_STRING);
+    snprintf(phash_version, sizeof(phash_version), phash_project, PACKAGE_STRING);
     return phash_version;
 }
 #ifdef HAVE_IMAGE_HASH
@@ -107,7 +104,8 @@ int ph_radon_projections(const CImg<uint8_t> &img, int N, Projections &projs) {
     projs.R = new CImg<uint8_t>(N, D, 1, 1, 0);
     projs.nb_pix_perline = (int *)calloc(N, sizeof(int));
 
-    if (!projs.R || !projs.nb_pix_perline) return -1;
+    if (!projs.R || !projs.nb_pix_perline)
+        return -1;
 
     projs.size = N;
 
@@ -125,8 +123,7 @@ int ph_radon_projections(const CImg<uint8_t> &img, int N, Projections &projs) {
                 *ptr_radon_map->data(k, x) = img(x, yd + y_off);
                 nb_per_line[k] += 1;
             }
-            if ((yd + x_off >= 0) && (yd + x_off < width) && (k != N / 4) &&
-                (x < height)) {
+            if ((yd + x_off >= 0) && (yd + x_off < width) && (k != N / 4) && (x < height)) {
                 *ptr_radon_map->data(N / 2 - k, x) = img(yd + x_off, x);
                 nb_per_line[N / 2 - k] += 1;
             }
@@ -143,11 +140,9 @@ int ph_radon_projections(const CImg<uint8_t> &img, int N, Projections &projs) {
                 *ptr_radon_map->data(k, x) = img(x, yd + y_off);
                 nb_per_line[k] += 1;
             }
-            if ((y_off - yd >= 0) && (y_off - yd < width) &&
-                (2 * y_off - x >= 0) && (2 * y_off - x < height) &&
+            if ((y_off - yd >= 0) && (y_off - yd < width) && (2 * y_off - x >= 0) && (2 * y_off - x < height) &&
                 (k != 3 * N / 4)) {
-                *ptr_radon_map->data(k - j, x) =
-                    img(-yd + y_off, -(x - y_off) + y_off);
+                *ptr_radon_map->data(k - j, x) = img(-yd + y_off, -(x - y_off) + y_off);
                 nb_per_line[k - j] += 1;
             }
         }
@@ -157,8 +152,7 @@ int ph_radon_projections(const CImg<uint8_t> &img, int N, Projections &projs) {
     return 0;
 }
 
-int ph_feature_vector(const Projections &projs, Features &fv)
-{
+int ph_feature_vector(const Projections &projs, Features &fv) {
     const CImg<uint8_t> &projection_map = *(projs.R);
     const int *nb_perline = projs.nb_pix_perline;
     const int N = projs.size;
@@ -172,18 +166,15 @@ int ph_feature_vector(const Projections &projs, Features &fv)
     double *feat_v = fv.features;
     double sum = 0.0;
     double sum_sqd = 0.0;
-    for (int k = 0; k < N; ++k)
-    {
+    for (int k = 0; k < N; ++k) {
         double line_sum = 0.0;
         double line_sum_sqd = 0.0;
         int nb_pixels = nb_perline[k];
-        if (nb_pixels == 0)
-        {
+        if (nb_pixels == 0) {
             feat_v[k] = 0.0;
             continue;
         }
-        for (int i = 0; i < D; ++i)
-        {
+        for (int i = 0; i < D; ++i) {
             const double pixel_value = projection_map(k, i);
             line_sum += pixel_value;
             line_sum_sqd += pixel_value * pixel_value;
@@ -197,8 +188,7 @@ int ph_feature_vector(const Projections &projs, Features &fv)
     const double mean = sum / N;
     const double var = 1.0 / sqrt((sum_sqd / N) - mean * mean);
 
-    for (int i = 0; i < N; ++i)
-    {
+    for (int i = 0; i < N; ++i) {
         feat_v[i] = (feat_v[i] - mean) * var;
     }
 
@@ -210,7 +200,8 @@ int ph_dct(const Features &fv, Digest &digest) {
     const int nb_coeffs = 40;
 
     digest.coeffs = (uint8_t *)malloc(nb_coeffs * sizeof(uint8_t));
-    if (!digest.coeffs) return -1;
+    if (!digest.coeffs)
+        return -1;
 
     digest.size = nb_coeffs;
 
@@ -242,8 +233,7 @@ int ph_dct(const Features &fv, Digest &digest) {
     return 0;
 }
 
-int ph_crosscorr(const Digest &x, const Digest &y, double &pcc,
-                 double threshold) {
+int ph_crosscorr(const Digest &x, const Digest &y, double &pcc, double threshold) {
     const int N = y.size;
     int result = 0;
 
@@ -271,34 +261,28 @@ int ph_crosscorr(const Digest &x, const Digest &y, double &pcc,
             deny += ((y_coeffs[idx] - meany) * (y_coeffs[idx] - meany));
         }
         r[d] = num / sqrt(denx * deny);
-        if (r[d] > d_max) d_max = r[d];
+        if (r[d] > d_max)
+            d_max = r[d];
     }
     delete[] r;
     pcc = d_max;
-    if (d_max > threshold) result = 1;
+    if (d_max > threshold)
+        result = 1;
 
     return result;
 }
 
-int _ph_image_digest(const CImg<uint8_t> &img, double sigma, double gamma,
-                     Digest &digest, int N) {
+int _ph_image_digest(const CImg<uint8_t> &img, double sigma, double gamma, Digest &digest, int N) {
     int result = -1;
     CImg<uint8_t> graysc;
-    if (img.spectrum() > 3)
-    {
+    if (img.spectrum() > 3) {
         CImg<> rgb = img.get_shared_channels(0, 2);
         graysc = rgb.RGBtoYCbCr().channel(0);
-    }
-    else if (img.spectrum() == 3)
-    {
+    } else if (img.spectrum() == 3) {
         graysc = img.get_RGBtoYCbCr().channel(0);
-    }
-    else if (img.spectrum() == 1)
-    {
+    } else if (img.spectrum() == 1) {
         graysc = img;
-    }
-    else
-    {
+    } else {
         return result;
     }
 
@@ -307,12 +291,15 @@ int _ph_image_digest(const CImg<uint8_t> &img, double sigma, double gamma,
     // (graysc / graysc.max()).pow(gamma);
 
     Projections projs;
-    if (ph_radon_projections(graysc, N, projs) < 0) goto cleanup;
+    if (ph_radon_projections(graysc, N, projs) < 0)
+        goto cleanup;
 
     Features features;
-    if (ph_feature_vector(projs, features) < 0) goto cleanup;
+    if (ph_feature_vector(projs, features) < 0)
+        goto cleanup;
 
-    if (ph_dct(features, digest) < 0) goto cleanup;
+    if (ph_dct(features, digest) < 0)
+        goto cleanup;
 
     result = 0;
 
@@ -324,8 +311,7 @@ cleanup:
     return result;
 }
 
-int ph_image_digest(const char *file, double sigma, double gamma,
-                    Digest &digest, int N) {
+int ph_image_digest(const char *file, double sigma, double gamma, Digest &digest, int N) {
     CImg<uint8_t> src(file);
     int res = -1;
     int result = _ph_image_digest(src, sigma, gamma, digest, N);
@@ -333,19 +319,22 @@ int ph_image_digest(const char *file, double sigma, double gamma,
     return res;
 }
 
-int _ph_compare_images(const CImg<uint8_t> &imA, const CImg<uint8_t> &imB,
-                       double &pcc, double sigma, double gamma, int N,
-                       double threshold) {
+int _ph_compare_images(const CImg<uint8_t> &imA, const CImg<uint8_t> &imB, double &pcc, double sigma, double gamma,
+                       int N, double threshold) {
     int result = 0;
     Digest digestA;
-    if (_ph_image_digest(imA, sigma, gamma, digestA, N) < 0) goto cleanup;
+    if (_ph_image_digest(imA, sigma, gamma, digestA, N) < 0)
+        goto cleanup;
 
     Digest digestB;
-    if (_ph_image_digest(imB, sigma, gamma, digestB, N) < 0) goto cleanup;
+    if (_ph_image_digest(imB, sigma, gamma, digestB, N) < 0)
+        goto cleanup;
 
-    if (ph_crosscorr(digestA, digestB, pcc, threshold) < 0) goto cleanup;
+    if (ph_crosscorr(digestA, digestB, pcc, threshold) < 0)
+        goto cleanup;
 
-    if (pcc > threshold) result = 1;
+    if (pcc > threshold)
+        result = 1;
 
 cleanup:
 
@@ -354,8 +343,8 @@ cleanup:
     return result;
 }
 
-int ph_compare_images(const char *file1, const char *file2, double &pcc,
-                      double sigma, double gamma, int N, double threshold) {
+int ph_compare_images(const char *file1, const char *file2, double &pcc, double sigma, double gamma, int N,
+                      double threshold) {
     CImg<uint8_t> imA(file1);
     CImg<uint8_t> imB(file2);
 
@@ -383,10 +372,10 @@ int _ph_dct_imagehash(const CImg<uint8_t> &src, ulong64 &hash) {
     CImg<float> meanfilter(7, 7, 1, 1, 1);
     CImg<float> img;
 
-    if (src.spectrum() > 3){
+    if (src.spectrum() > 3) {
         CImg<> rgb = src.get_shared_channels(0, 2);
         img = rgb.RGBtoYCbCr().channel(0).get_convolve(meanfilter);
-    } else if (src.spectrum() == 3){
+    } else if (src.spectrum() == 3) {
         img = src.get_RGBtoYCbCr().channel(0).get_convolve(meanfilter);
     } else {
         img = src.get_channel(0).get_convolve(meanfilter);
@@ -404,7 +393,8 @@ int _ph_dct_imagehash(const CImg<uint8_t> &src, ulong64 &hash) {
     hash = 0;
     for (int i = 0; i < 64; i++, hash <<= 1) {
         float current = subsec(i);
-        if (current > median) hash |= 0x01;
+        if (current > median)
+            hash |= 0x01;
     }
 
     return 0;
@@ -423,10 +413,10 @@ int ph_dct_imagehash(const char *file, ulong64 &hash) {
     CImg<float> meanfilter(7, 7, 1, 1, 1);
     CImg<float> img;
 
-    if (src.spectrum() > 3){
+    if (src.spectrum() > 3) {
         CImg<> rgb = src.get_shared_channels(0, 2);
         img = rgb.RGBtoYCbCr().channel(0).get_convolve(meanfilter);
-    } else if (src.spectrum() == 3){
+    } else if (src.spectrum() == 3) {
         img = src.RGBtoYCbCr().channel(0).get_convolve(meanfilter);
     } else {
         img = src.channel(0).get_convolve(meanfilter);
@@ -444,18 +434,17 @@ int ph_dct_imagehash(const char *file, ulong64 &hash) {
     hash = 0;
     for (int i = 0; i < 64; i++, hash <<= 1) {
         float current = subsec(i);
-        if (current > median) hash |= 0x01;
+        if (current > median)
+            hash |= 0x01;
     }
 
     return 0;
 }
 
 #ifdef HAVE_PTHREAD
-void *ph_image_thread(void *p)
-{
+void *ph_image_thread(void *p) {
     slice *s = (slice *)p;
-    for (int i = 0; i < s->n; ++i)
-    {
+    for (int i = 0; i < s->n; ++i) {
         DP *dp = (DP *)s->hash_p[i];
         ulong64 hash;
         int ret = ph_dct_imagehash(dp->id, hash);
@@ -466,29 +455,22 @@ void *ph_image_thread(void *p)
     return NULL;
 }
 
-DP **ph_dct_image_hashes(char *files[], int count, int threads)
-{
+DP **ph_dct_image_hashes(char *files[], int count, int threads) {
     if (!files || count <= 0)
         return NULL;
 
     int num_threads;
-    if (threads > count)
-    {
+    if (threads > count) {
         num_threads = count;
-    }
-    else if (threads > 0)
-    {
+    } else if (threads > 0) {
         num_threads = threads;
-    }
-    else
-    {
+    } else {
         num_threads = ph_num_threads();
     }
 
     DP **hashes = (DP **)malloc(count * sizeof(DP *));
 
-    for (int i = 0; i < count; ++i)
-    {
+    for (int i = 0; i < count; ++i) {
         hashes[i] = (DP *)malloc(sizeof(DP));
         hashes[i]->id = strdup(files[i]);
     }
@@ -499,8 +481,7 @@ DP **ph_dct_image_hashes(char *files[], int count, int threads)
     int start = 0;
     int off = 0;
     slice *s = new slice[num_threads];
-    for (int n = 0; n < num_threads; ++n)
-    {
+    for (int n = 0; n < num_threads; ++n) {
         off = (int)floor((count / (float)num_threads) + (rem > 0 ? num_threads - (count % num_threads) : 0));
 
         s[n].hash_p = &hashes[start];
@@ -510,8 +491,7 @@ DP **ph_dct_image_hashes(char *files[], int count, int threads)
         --rem;
         pthread_create(&thds[n], NULL, ph_image_thread, &s[n]);
     }
-    for (int i = 0; i < num_threads; ++i)
-    {
+    for (int i = 0; i < num_threads; ++i) {
         pthread_join(thds[i], NULL);
     }
     delete[] s;
@@ -519,7 +499,6 @@ DP **ph_dct_image_hashes(char *files[], int count, int threads)
     return hashes;
 }
 #endif
-
 
 #endif
 
@@ -632,13 +611,15 @@ CImgList<uint8_t> *ph_getKeyFramesFromVideo(const char *filename) {
         /* get local maximum */
         int localmaxpos = s_begin;
         for (int i = s_begin; i <= s_end; i++) {
-            if (dist[i] > dist[localmaxpos]) localmaxpos = i;
+            if (dist[i] > dist[localmaxpos])
+                localmaxpos = i;
         }
         /* get 2nd local maximum */
         int localmaxpos2 = s_begin;
         float localmax2 = 0;
         for (int i = s_begin; i <= s_end; i++) {
-            if (i == localmaxpos) continue;
+            if (i == localmaxpos)
+                continue;
             if (dist[i] > localmax2) {
                 localmaxpos2 = i;
                 localmax2 = dist[i];
@@ -670,7 +651,8 @@ CImgList<uint8_t> *ph_getKeyFramesFromVideo(const char *filename) {
         /* find min disparity within bounds */
         int minpos = start + 1;
         for (int i = start + 1; i < end; i++) {
-            if (dist[i] < dist[minpos]) minpos = i;
+            if (dist[i] < dist[minpos])
+                minpos = i;
         }
         bnds[minpos] = 2;
         nbselectedframes++;
@@ -683,8 +665,7 @@ CImgList<uint8_t> *ph_getKeyFramesFromVideo(const char *filename) {
     k = 0;
     do {
         if (bnds[k] == 2) {
-            if (ReadFrames(&st_info, pframelist, k * st_info.step,
-                           k * st_info.step + 1) < 0) {
+            if (ReadFrames(&st_info, pframelist, k * st_info.step, k * st_info.step + 1) < 0) {
                 delete pframelist;
                 free(dist);
                 return NULL;
@@ -704,7 +685,8 @@ CImgList<uint8_t> *ph_getKeyFramesFromVideo(const char *filename) {
 
 ulong64 *ph_dct_videohash(const char *filename, int &Length) {
     CImgList<uint8_t> *keyframes = ph_getKeyFramesFromVideo(filename);
-    if (keyframes == NULL) return NULL;
+    if (keyframes == NULL)
+        return NULL;
 
     Length = keyframes->size();
 
@@ -724,7 +706,8 @@ ulong64 *ph_dct_videohash(const char *filename, int &Length) {
         hash[i] = 0x0000000000000000;
         ulong64 one = 0x0000000000000001;
         for (int j = 0; j < 64; j++) {
-            if (subsec(j) > med) hash[i] |= one;
+            if (subsec(j) > med)
+                hash[i] |= one;
             one = one << 1;
         }
     }
@@ -737,50 +720,38 @@ ulong64 *ph_dct_videohash(const char *filename, int &Length) {
 }
 
 #ifdef HAVE_PTHREAD
-void *ph_video_thread(void *p)
-{
+void *ph_video_thread(void *p) {
     slice *s = (slice *)p;
-    for (int i = 0; i < s->n; ++i)
-    {
+    for (int i = 0; i < s->n; ++i) {
         DP *dp = (DP *)s->hash_p[i];
         int N;
         ulong64 *hash = ph_dct_videohash(dp->id, N);
-        if (hash)
-        {
+        if (hash) {
             dp->hash = hash;
             dp->hash_length = N;
-        }
-        else
-        {
+        } else {
             dp->hash = NULL;
             dp->hash_length = 0;
         }
     }
 }
 
-DP **ph_dct_video_hashes(char *files[], int count, int threads)
-{
+DP **ph_dct_video_hashes(char *files[], int count, int threads) {
     if (!files || count <= 0)
         return NULL;
 
     int num_threads;
-    if (threads > count)
-    {
+    if (threads > count) {
         num_threads = count;
-    }
-    else if (threads > 0)
-    {
+    } else if (threads > 0) {
         num_threads = threads;
-    }
-    else
-    {
+    } else {
         num_threads = ph_num_threads();
     }
 
     DP **hashes = (DP **)malloc(count * sizeof(DP *));
 
-    for (int i = 0; i < count; ++i)
-    {
+    for (int i = 0; i < count; ++i) {
         hashes[i] = (DP *)malloc(sizeof(DP));
         hashes[i]->id = strdup(files[i]);
     }
@@ -791,8 +762,7 @@ DP **ph_dct_video_hashes(char *files[], int count, int threads)
     int start = 0;
     int off = 0;
     slice *s = new slice[num_threads];
-    for (int n = 0; n < num_threads; ++n)
-    {
+    for (int n = 0; n < num_threads; ++n) {
         off = (int)floor((count / (float)num_threads) + (rem > 0 ? num_threads - (count % num_threads) : 0));
 
         s[n].hash_p = &hashes[start];
@@ -802,8 +772,7 @@ DP **ph_dct_video_hashes(char *files[], int count, int threads)
         --rem;
         pthread_create(&thds[n], NULL, ph_video_thread, &s[n]);
     }
-    for (int i = 0; i < num_threads; ++i)
-    {
+    for (int i = 0; i < num_threads; ++i) {
         pthread_join(thds[i], NULL);
     }
     delete[] s;
@@ -812,8 +781,7 @@ DP **ph_dct_video_hashes(char *files[], int count, int threads)
 }
 #endif
 
-double ph_dct_videohash_dist(ulong64 *hashA, int N1, ulong64 *hashB, int N2, int threshold){
-
+double ph_dct_videohash_dist(ulong64 *hashA, int N1, ulong64 *hashB, int N2, int threshold) {
     int den = (N1 <= N2) ? N1 : N2;
     int C[N1 + 1][N2 + 1];
 
@@ -829,8 +797,7 @@ double ph_dct_videohash_dist(ulong64 *hashA, int N1, ulong64 *hashB, int N2, int
             if (d <= threshold) {
                 C[i][j] = C[i - 1][j - 1] + 1;
             } else {
-                C[i][j] =
-                    ((C[i - 1][j] >= C[i][j - 1])) ? C[i - 1][j] : C[i][j - 1];
+                C[i][j] = ((C[i - 1][j] >= C[i][j - 1])) ? C[i - 1][j] : C[i][j - 1];
             }
         }
     }
@@ -847,10 +814,9 @@ static const ulong64 m1 = 0x5555555555555555ULL;
 static const ulong64 m2 = 0x3333333333333333ULL;
 static const ulong64 h01 = 0x0101010101010101ULL;
 static const ulong64 m4 = 0x0f0f0f0f0f0f0f0fULL;
-#endif // _MSC_VER
+#endif  // _MSC_VER
 
-int ph_hamming_distance(const ulong64 hash1, const ulong64 hash2)
-{
+int ph_hamming_distance(const ulong64 hash1, const ulong64 hash2) {
 #ifdef _MSC_VER
     ulong64 x = hash1 ^ hash2;
     x -= (x >> 1) & m1;
@@ -889,26 +855,24 @@ uint8_t *_ph_mh_imagehash(const CImg<uint8_t> &src, int &N, float alpha, float l
     N = 72;
 
     CImg<uint8_t> img;
-    if (img.spectrum() > 3)
-    {
+    if (img.spectrum() > 3) {
         CImg<> rgb = src.get_shared_channels(0, 2);
         img = rgb.get_RGBtoYCbCr()
-                  .channel(0)
-                  .blur(1.0)
-                  .resize(512, 512, 1, 1, 5)
-                  .get_equalize(256);
-    }
-    else if (src.spectrum() == 3) {
+                 .channel(0)
+                 .blur(1.0)
+                 .resize(512, 512, 1, 1, 5)
+                 .get_equalize(256);
+    } else if (src.spectrum() == 3) {
         img = src.get_RGBtoYCbCr()
-                  .channel(0)
-                  .blur(1.0)
-                  .resize(512, 512, 1, 1, 5)
-                  .get_equalize(256);
+                 .channel(0)
+                 .blur(1.0)
+                 .resize(512, 512, 1, 1, 5)
+                 .get_equalize(256);
     } else {
         img = src.get_channel(0)
-                  .get_blur(1.0)
-                  .resize(512, 512, 1, 1, 5)
-                  .get_equalize(256);
+                 .get_blur(1.0)
+                 .resize(512, 512, 1, 1, 5)
+                 .get_equalize(256);
     }
     // src.clear();
 
@@ -920,10 +884,8 @@ uint8_t *_ph_mh_imagehash(const CImg<uint8_t> &src, int &N, float alpha, float l
     for (int rindex = 0; rindex < 31; rindex++) {
         for (int cindex = 0; cindex < 31; cindex++) {
             blocks(rindex, cindex) =
-                fresp
-                    .get_crop(rindex * 16, cindex * 16, rindex * 16 + 16 - 1,
-                              cindex * 16 + 16 - 1)
-                    .sum();
+                fresp.get_crop(rindex * 16, cindex * 16, rindex * 16 + 16 - 1, cindex * 16 + 16 - 1)
+                     .sum();
         }
     }
     int hash_index;
@@ -934,7 +896,7 @@ uint8_t *_ph_mh_imagehash(const CImg<uint8_t> &src, int &N, float alpha, float l
         CImg<float> subsec;
         for (int cindex = 0; cindex < 31 - 2; cindex += 4) {
             subsec = blocks.get_crop(cindex, rindex, cindex + 2, rindex + 2)
-                         .unroll('x');
+                           .unroll('x');
             float ave = subsec.mean();
             cimg_forX(subsec, I) {
                 hashbyte <<= 1;
@@ -967,21 +929,24 @@ uint8_t *ph_mh_imagehash(const char *filename, int &N, float alpha, float lvl) {
     CImg<uint8_t> src(filename);
     CImg<uint8_t> img;
 
-    if (src.spectrum() > 3)
-    {
+    if (src.spectrum() > 3) {
         CImg<> rgb = src.get_shared_channels(0, 2);
-        img = rgb.get_RGBtoYCbCr().channel(0).blur(1.0).resize(512,512,1,1,5).get_equalize(256);
+        img = rgb.get_RGBtoYCbCr()
+                 .channel(0)
+                 .blur(1.0)
+                 .resize(512, 512, 1, 1, 5)
+                 .get_equalize(256);
     } else if (src.spectrum() == 3) {
         img = src.get_RGBtoYCbCr()
-                  .channel(0)
-                  .blur(1.0)
-                  .resize(512, 512, 1, 1, 5)
-                  .get_equalize(256);
+                 .channel(0)
+                 .blur(1.0)
+                 .resize(512, 512, 1, 1, 5)
+                 .get_equalize(256);
     } else {
         img = src.channel(0)
-                  .get_blur(1.0)
-                  .resize(512, 512, 1, 1, 5)
-                  .get_equalize(256);
+                 .get_blur(1.0)
+                 .resize(512, 512, 1, 1, 5)
+                 .get_equalize(256);
     }
     src.clear();
 
@@ -993,10 +958,8 @@ uint8_t *ph_mh_imagehash(const char *filename, int &N, float alpha, float lvl) {
     for (int rindex = 0; rindex < 31; rindex++) {
         for (int cindex = 0; cindex < 31; cindex++) {
             blocks(rindex, cindex) =
-                fresp
-                    .get_crop(rindex * 16, cindex * 16, rindex * 16 + 16 - 1,
-                              cindex * 16 + 16 - 1)
-                    .sum();
+                fresp.get_crop(rindex * 16, cindex * 16, rindex * 16 + 16 - 1, cindex * 16 + 16 - 1)
+                     .sum();
         }
     }
     int hash_index;
@@ -1007,7 +970,7 @@ uint8_t *ph_mh_imagehash(const char *filename, int &N, float alpha, float lvl) {
         CImg<float> subsec;
         for (int cindex = 0; cindex < 31 - 2; cindex += 4) {
             subsec = blocks.get_crop(cindex, rindex, cindex + 2, rindex + 2)
-                         .unroll('x');
+                           .unroll('x');
             float ave = subsec.mean();
             cimg_forX(subsec, I) {
                 hashbyte <<= 1;
@@ -1031,8 +994,7 @@ uint8_t *ph_mh_imagehash(const char *filename, int &N, float alpha, float lvl) {
 }
 #endif
 
-char **ph_readfilenames(const char *dirname, int &count)
-{
+char **ph_readfilenames(const char *dirname, int &count) {
     count = 0;
     struct dirent *dir_entry;
     DIR *dir = opendir(dirname);
@@ -1040,8 +1002,7 @@ char **ph_readfilenames(const char *dirname, int &count)
         return NULL;
 
     /*count files */
-    while ((dir_entry = readdir(dir)) != NULL)
-    {
+    while ((dir_entry = readdir(dir)) != NULL) {
         if (strcmp(dir_entry->d_name, ".") && strcmp(dir_entry->d_name, ".."))
             count++;
     }
@@ -1056,10 +1017,8 @@ char **ph_readfilenames(const char *dirname, int &count)
     char path[1024];
     path[0] = '\0';
     rewinddir(dir);
-    while ((dir_entry = readdir(dir)) != 0)
-    {
-        if (strcmp(dir_entry->d_name, ".") && strcmp(dir_entry->d_name, ".."))
-        {
+    while ((dir_entry = readdir(dir)) != 0) {
+        if (strcmp(dir_entry->d_name, ".") && strcmp(dir_entry->d_name, "..")) {
             strcat(path, dirname);
             strcat(path, "/");
             strcat(path, dir_entry->d_name);
@@ -1132,8 +1091,7 @@ TxtHashPoint *ph_texthash(const char *filename, int *nbpoints) {
         }
         if (d <= 47) /*skip cntrl chars*/
             continue;
-        if (((d >= 58) && (d <= 64)) || ((d >= 91) && (d <= 96)) ||
-            (d >= 123)) /*skip punct*/
+        if (((d >= 58) && (d <= 64)) || ((d >= 91) && (d <= 96)) || (d >= 123)) /*skip punct*/
             continue;
         if ((d >= 65) && (d <= 90)) /*convert upper to lower case */
             d = d + 32;
@@ -1160,8 +1118,7 @@ TxtHashPoint *ph_texthash(const char *filename, int *nbpoints) {
         }
         if (d <= 47) /*skip cntrl chars*/
             continue;
-        if (((d >= 58) && (d <= 64)) || ((d >= 91) && (d <= 96)) ||
-            (d >= 123)) /*skip punct*/
+        if (((d >= 58) && (d <= 64)) || ((d >= 91) && (d <= 96)) || (d >= 123)) /*skip punct*/
             continue;
         if ((d >= 65) && (d <= 90)) /*convert upper to lower case */
             d = d + 32;
@@ -1208,11 +1165,9 @@ TxtHashPoint *ph_texthash(const char *filename, int *nbpoints) {
     return TxtHash;
 }
 
-TxtMatch *ph_compare_text_hashes(TxtHashPoint *hash1, int N1,
-                                 TxtHashPoint *hash2, int N2, int *nbmatches) {
+TxtMatch *ph_compare_text_hashes(TxtHashPoint *hash1, int N1, TxtHashPoint *hash2, int N2, int *nbmatches) {
     int max_matches = (N1 >= N2) ? N1 : N2;
-    TxtMatch *found_matches =
-        (TxtMatch *)malloc(max_matches * sizeof(TxtMatch));
+    TxtMatch *found_matches = (TxtMatch *)malloc(max_matches * sizeof(TxtMatch));
     if (!found_matches) {
         return NULL;
     }
@@ -1225,8 +1180,7 @@ TxtMatch *ph_compare_text_hashes(TxtHashPoint *hash1, int N1,
                 int m = i + 1;
                 int n = j + 1;
                 int cnt = 1;
-                while ((m < N1) && (n < N2) &&
-                       (hash1[m++].hash == hash2[n++].hash)) {
+                while ((m < N1) && (n < N2) && (hash1[m++].hash == hash2[n++].hash)) {
                     cnt++;
                 }
                 found_matches[*nbmatches].first_index = i;

@@ -1,4 +1,5 @@
 #include "pHash_ext.h"
+
 #include <future>
 
 static int m_angles = 180;
@@ -7,14 +8,11 @@ static double m_gamma = 1.0;
 static double m_alpha = 2.0;
 static double m_level = 1.0;
 
-static int dct_imagehash_thread(const CImg<uint8_t> &img, ulong64 &hash)
-{
+static int dct_imagehash_thread(const CImg<uint8_t> &img, ulong64 &hash) {
     return _ph_dct_imagehash(img, hash);
 }
 
-
-double compare_dct_imagehash_ex_multithread(const CImg<uint8_t> &img1, const CImg<uint8_t> &img2)
-{
+double compare_dct_imagehash_ex_multithread(const CImg<uint8_t> &img1, const CImg<uint8_t> &img2) {
     ulong64 hash1 = 0;
     auto future = std::async(std::launch::async, dct_imagehash_thread, std::ref(img1), std::ref(hash1));
 
@@ -29,14 +27,11 @@ double compare_dct_imagehash_ex_multithread(const CImg<uint8_t> &img1, const CIm
     return static_cast<double>(d);
 }
 
-
-static int radial_imagehash_thread(const CImg<uint8_t> &img, Digest &digest)
-{
+static int radial_imagehash_thread(const CImg<uint8_t> &img, Digest &digest) {
     return _ph_image_digest(img, m_sigma, m_gamma, digest, m_angles);
 }
 
-int compare_radial_imagehash_ex_multithread(const CImg<uint8_t> &imA, const CImg<uint8_t> &imB)
-{
+int compare_radial_imagehash_ex_multithread(const CImg<uint8_t> &imA, const CImg<uint8_t> &imB) {
     Digest digestA;
     auto future = std::async(std::launch::async, radial_imagehash_thread, std::ref(imA), std::ref(digestA));
 
@@ -49,8 +44,7 @@ int compare_radial_imagehash_ex_multithread(const CImg<uint8_t> &imA, const CImg
     int ret1 = _ph_image_digest(imB, m_sigma, m_gamma, digestB, m_angles);
     int ret2 = future.get();
 
-    if (ret1 >= 0 && ret2 >= 0)
-    {
+    if (ret1 >= 0 && ret2 >= 0) {
         if (ph_crosscorr(digestA, digestB, pcc, threshold) > 0)
             result = 1;
     }
@@ -63,9 +57,9 @@ cleanup:
 }
 
 // on testing
-static int _ph_image_digest_samesize(const CImg<uint8_t> &imgA, const CImg<uint8_t> &imgB, Digest &digestA, Digest &digestB, double sigma, double gamma, int N, int need_blur);
-int compare_radial_imagehash_ex_samesize(const CImg<uint8_t> &imA, const CImg<uint8_t> &imB)
-{
+static int _ph_image_digest_samesize(const CImg<uint8_t> &imgA, const CImg<uint8_t> &imgB, Digest &digestA,
+                                     Digest &digestB, double sigma, double gamma, int N, int need_blur);
+int compare_radial_imagehash_ex_samesize(const CImg<uint8_t> &imA, const CImg<uint8_t> &imB) {
     // if (imA.width() == imB.width() && imA.height() == imB.height())
 
     // int need_gauss_blur = 0;
@@ -93,7 +87,8 @@ cleanup:
     return 0;
 }
 
-static int ph_radon_projections_samesize(const CImg<uint8_t> &imgA, Projections &projsA, const CImg<uint8_t> &imgB, Projections &projsB, const int N) {
+static int ph_radon_projections_samesize(const CImg<uint8_t> &imgA, Projections &projsA, const CImg<uint8_t> &imgB,
+                                         Projections &projsB, const int N) {
     int width = imgA.width();
     int height = imgB.height();
     int D = (width > height) ? width : height;
@@ -125,8 +120,7 @@ static int ph_radon_projections_samesize(const CImg<uint8_t> &imgA, Projections 
                 *ptr_radon_mapB->data(k, x) = imgB(x, yd + y_off);
                 nb_per_line[k] += 1;
             }
-            if ((yd + x_off >= 0) && (yd + x_off < width) && (k != N_d4) &&
-                (x < height)) {
+            if ((yd + x_off >= 0) && (yd + x_off < width) && (k != N_d4) && (x < height)) {
                 *ptr_radon_mapA->data(N_d2 - k, x) = imgA(yd + x_off, x);
                 *ptr_radon_mapB->data(N_d2 - k, x) = imgB(yd + x_off, x);
                 nb_per_line[N_d2 - k] += 1;
@@ -149,15 +143,12 @@ static int ph_radon_projections_samesize(const CImg<uint8_t> &imgA, Projections 
 
                 *ptr_radon_mapB->data(k, x) = imgB(x, yd + y_off);
             }
-            if ((y_off - yd >= 0) && (y_off - yd < width) &&
-                (y_off_m2 - x >= 0) && (y_off_m2 - x < height) &&
+            if ((y_off - yd >= 0) && (y_off - yd < width) && (y_off_m2 - x >= 0) && (y_off_m2 - x < height) &&
                 (k != N3_d4)) {
-                *ptr_radon_mapA->data(k - j, x) =
-                    imgA(-yd + y_off, -(x - y_off) + y_off);
+                *ptr_radon_mapA->data(k - j, x) = imgA(-yd + y_off, -(x - y_off) + y_off);
                 nb_per_line[k - j] += 1;
 
-                *ptr_radon_mapB->data(k - j, x) =
-                    imgB(-yd + y_off, -(x - y_off) + y_off);
+                *ptr_radon_mapB->data(k - j, x) = imgB(-yd + y_off, -(x - y_off) + y_off);
             }
         }
         j += 2;
@@ -166,8 +157,7 @@ static int ph_radon_projections_samesize(const CImg<uint8_t> &imgA, Projections 
     return 0;
 }
 
-int ph_feature_vector_samesize(const Projections &projsA, Features &fvA, const Projections &projsB, Features &fvB)
-{
+int ph_feature_vector_samesize(const Projections &projsA, Features &fvA, const Projections &projsB, Features &fvB) {
     const CImg<uint8_t> &projection_mapA = *(projsA.R);
     const CImg<uint8_t> &projection_mapB = *(projsB.R);
     const int *nb_perline = projsA.nb_pix_perline;
@@ -189,22 +179,19 @@ int ph_feature_vector_samesize(const Projections &projsA, Features &fvA, const P
 
     double sumB = 0.0;
     double sum_sqdB = 0.0;
-    for (int k = 0; k < N; ++k)
-    {
+    for (int k = 0; k < N; ++k) {
         double line_sumA = 0.0;
         double line_sum_sqdA = 0.0;
 
         double line_sumB = 0.0;
         double line_sum_sqdB = 0.0;
         int nb_pixels = nb_perline[k];
-        if (nb_pixels == 0)
-        {
+        if (nb_pixels == 0) {
             feat_vA[k] = 0.0;
             feat_vB[k] = 0.0;
             continue;
         }
-        for (int i = 0; i < D; ++i)
-        {
+        for (int i = 0; i < D; ++i) {
             const double pixel_valueA = projection_mapA(k, i);
             line_sumA += pixel_valueA;
             line_sum_sqdA += pixel_valueA * pixel_valueA;
@@ -229,8 +216,7 @@ int ph_feature_vector_samesize(const Projections &projsA, Features &fvA, const P
 
     const double meanB = sumB / N;
     const double varB = 1.0 / sqrt((sum_sqdB / N) - meanB * meanB);
-    for (int i = 0; i < N; ++i)
-    {
+    for (int i = 0; i < N; ++i) {
         feat_vA[i] = (feat_vA[i] - meanA) * varA;
         feat_vB[i] = (feat_vB[i] - meanB) * varB;
     }
@@ -291,42 +277,33 @@ int ph_dct_samsize(const Features &fvA, Digest &digestA, const Features &fvB, Di
     return 0;
 }
 
-
-static int _ph_image_digest_samesize(const CImg<uint8_t> &imgA, const CImg<uint8_t> &imgB, Digest &digestA, Digest &digestB, double sigma, double gamma, int N, int need_blur)
-{
+static int _ph_image_digest_samesize(const CImg<uint8_t> &imgA, const CImg<uint8_t> &imgB, Digest &digestA,
+                                     Digest &digestB, double sigma, double gamma, int N, int need_blur) {
     int result = -1;
     CImg<uint8_t> grayscA, grayscB;
-    if (imgA.spectrum() > 3)
-    {
+    if (imgA.spectrum() > 3) {
         CImg<> rgbA = imgA.get_shared_channels(0, 2);
         grayscA = rgbA.RGBtoYCbCr().channel(0);
 
         CImg<> rgbB = imgB.get_shared_channels(0, 2);
         grayscB = rgbB.RGBtoYCbCr().channel(0);
-    }
-    else if (imgA.spectrum() == 3)
-    {
+    } else if (imgA.spectrum() == 3) {
         grayscA = imgA.get_RGBtoYCbCr().channel(0);
         grayscB = imgB.get_RGBtoYCbCr().channel(0);
-    }
-    else if (imgA.spectrum() == 1)
-    {
+    } else if (imgA.spectrum() == 1) {
         grayscA = imgA;
         grayscB = imgB;
-    }
-    else
-    {
+    } else {
         return result;
     }
 
-    if (need_blur > 0)
-    {
-        grayscA.blur((float)sigma); // graysc blur, Too time-consuming
+    if (need_blur > 0) {
+        grayscA.blur((float)sigma);  // graysc blur, Too time-consuming
         grayscB.blur((float)sigma);
     }
     Projections projsA;
     Projections projsB;
-    int* nb_pix_arr = (int *)calloc(N, sizeof(int));
+    int *nb_pix_arr = (int *)calloc(N, sizeof(int));
     projsA.nb_pix_perline = nb_pix_arr;
     projsB.nb_pix_perline = nb_pix_arr;
     if (ph_radon_projections_samesize(grayscA, projsA, grayscB, projsB, N) < 0)
@@ -350,4 +327,3 @@ cleanup:
     delete projsB.R;
     return result;
 }
-

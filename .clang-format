@@ -3,6 +3,13 @@ BasedOnStyle: Google
 ConstructorInitializerIndentWidth: '2'
 ContinuationIndentWidth: '4'
 IndentWidth: '4'
+ColumnLimit: '120'
 NamespaceIndentation: None
+AlignConsecutiveMacros: true
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+AlignOperands: Align
+PenaltyBreakAssignment: 6
 
 ...
