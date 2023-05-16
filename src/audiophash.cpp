@@ -25,6 +25,7 @@
 #include "audiophash.h"
 #include <samplerate.h>
 #include <sndfile.h>
+#include <thread>
 #ifdef HAVE_LIBMPG123
 #include <mpg123.h>
 #endif
@@ -508,7 +509,7 @@ DP **ph_audio_hashes(char *files[], int count, int sr, int channels,
     } else if (threads > 0) {
         num_threads = threads;
     } else {
-        num_threads = ph_num_threads();
+        num_threads = std::thread::hardware_concurrency();
     }
 
     DP **hashes = (DP **)malloc(count * sizeof(DP *));
@@ -518,7 +519,7 @@ DP **ph_audio_hashes(char *files[], int count, int sr, int channels,
         hashes[i]->id = strdup(files[i]);
     }
 
-    pthread_t thds[num_threads];
+    std::thread *thds = new std::thread[num_threads];
 
     int rem = count % num_threads;
     int start = 0;
@@ -533,13 +534,14 @@ DP **ph_audio_hashes(char *files[], int count, int sr, int channels,
         s[n].hash_params = new pair<int, int>(sr, channels);
         start += off;
         --rem;
-        pthread_create(&thds[n], NULL, ph_audio_thread, &s[n]);
+        thds[n] = std::thread(ph_audio_thread, &s[n]);
     }
     for (int i = 0; i < num_threads; ++i) {
-        pthread_join(thds[i], NULL);
+        thds[i].join();
         delete (pair<int, int> *)s[i].hash_params;
     }
     delete[] s;
+    delete[] thds;
 
     return hashes;
 }

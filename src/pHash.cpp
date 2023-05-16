@@ -24,6 +24,8 @@
 
 #include "pHash.h"
 
+#include <thread>
+
 #ifdef HAVE_DIRENT_H
 #include <dirent.h>
 #else
@@ -32,54 +34,6 @@
 
 #ifdef HAVE_VIDEO_HASH
 #include "cimgffmpeg.h"
-#endif
-
-#ifdef HAVE_PTHREAD
-#include <pthread.h>
-
-#ifdef __MINGW32__
-#include <windows.h>
-
-int ph_num_threads() {
-    SYSTEM_INFO sysinfo;
-    GetSystemInfo(&sysinfo);
-    return sysinfo.dwNumberOfProcessors;
-}
-
-#else
-
-#ifdef __FreeBSD__
-#include <sys/param.h>
-#include <sys/sysctl.h>
-
-#endif
-
-int ph_num_threads() {
-    int numCPU = 1;
-#ifndef __FreeBSD__
-    numCPU = sysconf(_SC_NPROCESSORS_ONLN);
-#else
-    int mib[2];
-    size_t len;
-
-    mib[0] = CTL_HW;
-    mib[1] = HW_AVAILCPU;
-
-    sysctl(mib, 2, &numCPU, &len, NULL, 0);
-
-    if (numCPU < 1) {
-        mib[1] = HW_NCPU;
-        sysctl(mib, 2, &numCPU, &len, NULL, 0);
-
-        if (numCPU < 1) {
-            numCPU = 1;
-        }
-    }
-
-#endif
-    return numCPU;
-}
-#endif  // NOT __MINGW32__
 #endif
 
 const char phash_project[] = "%s. Copyright 2008-2010 Aetilius, Inc.";
@@ -441,7 +395,6 @@ int ph_dct_imagehash(const char *file, ulong64 &hash) {
     return 0;
 }
 
-#ifdef HAVE_PTHREAD
 void *ph_image_thread(void *p) {
     slice *s = (slice *)p;
     for (int i = 0; i < s->n; ++i) {
@@ -457,48 +410,55 @@ void *ph_image_thread(void *p) {
 
 DP **ph_dct_image_hashes(char *files[], int count, int threads) {
     if (!files || count <= 0)
-        return NULL;
+        return nullptr;
 
-    int num_threads;
-    if (threads > count) {
+    int num_threads = threads < 1 ? 1 : threads;
+    if (num_threads > count)
         num_threads = count;
-    } else if (threads > 0) {
-        num_threads = threads;
-    } else {
-        num_threads = ph_num_threads();
+    if (num_threads > 1) {
+        int max_threads_num = 0;
+        max_threads_num = std::thread::hardware_concurrency();
+        num_threads = num_threads < max_threads_num ? num_threads : max_threads_num;
+        num_threads = num_threads > 0 ? num_threads : 1;
     }
 
     DP **hashes = (DP **)malloc(count * sizeof(DP *));
-
     for (int i = 0; i < count; ++i) {
         hashes[i] = (DP *)malloc(sizeof(DP));
         hashes[i]->id = strdup(files[i]);
     }
 
-    pthread_t thds[num_threads];
+    if (num_threads > 1) {
+        std::thread *thds = new std::thread[num_threads];
+        int rem = count % num_threads;
+        int start = 0;
+        int off = 0;
+        slice *s = new slice[num_threads];
+        for (int n = 0; n < num_threads; ++n) {
+            off = (int)floor((count / (float)num_threads) + (rem > 0 ? num_threads - (count % num_threads) : 0));
 
-    int rem = count % num_threads;
-    int start = 0;
-    int off = 0;
-    slice *s = new slice[num_threads];
-    for (int n = 0; n < num_threads; ++n) {
-        off = (int)floor((count / (float)num_threads) + (rem > 0 ? num_threads - (count % num_threads) : 0));
-
-        s[n].hash_p = &hashes[start];
-        s[n].n = off;
-        s[n].hash_params = NULL;
-        start += off;
-        --rem;
-        pthread_create(&thds[n], NULL, ph_image_thread, &s[n]);
+            s[n].hash_p = &hashes[start];
+            s[n].n = off;
+            s[n].hash_params = NULL;
+            start += off;
+            --rem;
+            thds[n] = std::thread(ph_image_thread, &s[n]);
+        }
+        for (int i = 0; i < num_threads; ++i) {
+            thds[i].join();
+        }
+        delete[] s;
+        delete[] thds;
+    } else {
+        slice slice_tmp;
+        slice_tmp.hash_p = &hashes[0];
+        slice_tmp.hash_params = nullptr;
+        slice_tmp.n = count;
+        ph_image_thread(&slice_tmp);
     }
-    for (int i = 0; i < num_threads; ++i) {
-        pthread_join(thds[i], NULL);
-    }
-    delete[] s;
 
     return hashes;
 }
-#endif
 
 #endif
 
@@ -719,7 +679,6 @@ ulong64 *ph_dct_videohash(const char *filename, int &Length) {
     return hash;
 }
 
-#ifdef HAVE_PTHREAD
 void *ph_video_thread(void *p) {
     slice *s = (slice *)p;
     for (int i = 0; i < s->n; ++i) {
@@ -746,7 +705,7 @@ DP **ph_dct_video_hashes(char *files[], int count, int threads) {
     } else if (threads > 0) {
         num_threads = threads;
     } else {
-        num_threads = ph_num_threads();
+        num_threads = std::thread::hardware_concurrency();
     }
 
     DP **hashes = (DP **)malloc(count * sizeof(DP *));
@@ -756,7 +715,7 @@ DP **ph_dct_video_hashes(char *files[], int count, int threads) {
         hashes[i]->id = strdup(files[i]);
     }
 
-    pthread_t thds[num_threads];
+    std::thread *thds = new std::thread[num_threads];
 
     int rem = count % num_threads;
     int start = 0;
@@ -770,16 +729,16 @@ DP **ph_dct_video_hashes(char *files[], int count, int threads) {
         s[n].hash_params = NULL;
         start += off;
         --rem;
-        pthread_create(&thds[n], NULL, ph_video_thread, &s[n]);
+        thds[n] = std::thread(ph_video_thread, &s[n]);
     }
     for (int i = 0; i < num_threads; ++i) {
-        pthread_join(thds[i], NULL);
+        thds[i].join();
     }
     delete[] s;
+    delete[] thds;
 
     return hashes;
 }
-#endif
 
 double ph_dct_videohash_dist(ulong64 *hashA, int N1, ulong64 *hashB, int N2, int threshold) {
     int den = (N1 <= N2) ? N1 : N2;

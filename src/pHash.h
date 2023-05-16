@@ -134,9 +134,6 @@ typedef struct ph_match {
     uint32_t length;    /*length of match between 2 files */
 } TxtMatch;
 
-#ifdef HAVE_PTHREAD
-int ph_num_threads();
-#endif
 
 /* /brief alloc a single data point
  *  allocates path array, does nto set id or path
@@ -252,15 +249,20 @@ DLL_EXPORT int ph_dct_imagehash(const char *file, ulong64 &hash);
  */
 DLL_EXPORT int _ph_dct_imagehash(const CImg<uint8_t> &img, ulong64 &hash);
 
+/*! /brief compute multiple dct robust image hashes
+ *  /param files  - string array for name of files
+ *  /param count  - number of files
+ *  /param threads- Number of threads(use c++11 std::thread)
+ *  /return - hash array
+ */
+DLL_EXPORT DP **ph_dct_image_hashes(char *files[], int count, int threads = 0);
+
 DLL_EXPORT int ph_bmb_imagehash(const char *file, BMBHash &ret_hash);
 
 DLL_EXPORT int _ph_bmb_imagehash(const CImg<uint8_t> &img, BMBHash &ret_hash);
 
 DLL_EXPORT double ph_bmb_distance(const BMBHash &bh1, const BMBHash &bh2);
-#endif
 
-#ifdef HAVE_PTHREAD
-DLL_EXPORT DP **ph_dct_image_hashes(char *files[], int count, int threads = 0);
 #endif
 
 #ifdef HAVE_VIDEO_HASH
