@@ -519,31 +519,7 @@ DP **ph_audio_hashes(char *files[], int count, int sr, int channels, int threads
         hashes[i]->id = strdup(files[i]);
     }
 
-#if 0
-    std::thread *thds = new std::thread[num_threads];
-
-    int rem = count % num_threads;
-    int start = 0;
-    int off = 0;
-    slice *s = new slice[num_threads];
-    for (int n = 0; n < num_threads; ++n) {
-        off = (int)floor((count / (float)num_threads) + (rem > 0 ? num_threads - (count % num_threads) : 0));
-
-        s[n].hash_p = &hashes[start];
-        s[n].n = off;
-        s[n].hash_params = new pair<int, int>(sr, channels);
-        start += off;
-        --rem;
-        thds[n] = std::thread(ph_audio_thread, &s[n]);
-    }
-    for (int i = 0; i < num_threads; ++i) {
-        thds[i].join();
-        delete (pair<int, int> *)s[i].hash_params;
-    }
-    delete[] s;
-    delete[] thds;
-#else
-   if (num_threads > 1) {
+    if (num_threads > 1) {
         std::thread *thds = new std::thread[num_threads];
         int rem = count % num_threads;
         int start = 0;
@@ -573,8 +549,8 @@ DP **ph_audio_hashes(char *files[], int count, int sr, int channels, int threads
         slice_tmp.hash_params = nullptr;
         slice_tmp.n = count;
         ph_image_thread(&slice_tmp);
+        delete (pair<int, int> *)slice_tmp.hash_params;
     }
-#endif
 
     return hashes;
 }

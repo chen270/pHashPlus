@@ -441,7 +441,7 @@ DP **ph_dct_image_hashes(char *files[], int count, int threads) {
 
     DP **hashes = (DP **)malloc(count * sizeof(DP *));
     for (int i = 0; i < count; ++i) {
-        hashes[i] = (DP *)malloc(sizeof(DP));
+        hashes[i] = ph_malloc_datapoint(UINT64ARRAY);
         hashes[i]->id = strdup(files[i]);
     }
 
