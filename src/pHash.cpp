@@ -45,6 +45,23 @@ const char *ph_about() {
     snprintf(phash_version, sizeof(phash_version), phash_project, PACKAGE_STRING);
     return phash_version;
 }
+
+DP *ph_malloc_datapoint(HashType type) {
+    DP* dp = new DP();
+    dp->hash = nullptr;
+    dp->id = nullptr;
+    dp->path = nullptr;
+    dp->hash_type = static_cast<uint8_t>(type);
+    return dp;
+}
+
+void ph_free_datapoint(DP *dp) {
+    if (!dp)
+        return;
+    delete dp;
+    return;
+}
+
 #ifdef HAVE_IMAGE_HASH
 int ph_radon_projections(const CImg<uint8_t> &img, int N, Projections &projs) {
     int width = img.width();
@@ -412,14 +429,14 @@ DP **ph_dct_image_hashes(char *files[], int count, int threads) {
     if (!files || count <= 0)
         return nullptr;
 
-    int num_threads = threads < 1 ? 1 : threads;
-    if (num_threads > count)
-        num_threads = count;
-    if (num_threads > 1) {
-        int max_threads_num = 0;
-        max_threads_num = std::thread::hardware_concurrency();
-        num_threads = num_threads < max_threads_num ? num_threads : max_threads_num;
-        num_threads = num_threads > 0 ? num_threads : 1;
+    int num_threads = 1;
+    if (count > 1) {
+        num_threads = threads < 0 ? 0 : threads;
+        int max_threads_num = std::thread::hardware_concurrency();
+        if (num_threads == 0 || num_threads > max_threads_num)
+            num_threads = max_threads_num;
+        if (num_threads > count)
+            num_threads = count;
     }
 
     DP **hashes = (DP **)malloc(count * sizeof(DP *));
@@ -435,13 +452,15 @@ DP **ph_dct_image_hashes(char *files[], int count, int threads) {
         int off = 0;
         slice *s = new slice[num_threads];
         for (int n = 0; n < num_threads; ++n) {
-            off = (int)floor((count / (float)num_threads) + (rem > 0 ? num_threads - (count % num_threads) : 0));
-
+            off = count / num_threads;
+            if (rem > 0) {
+                off += 1;
+                --rem;
+            }
             s[n].hash_p = &hashes[start];
             s[n].n = off;
-            s[n].hash_params = NULL;
+            s[n].hash_params = nullptr;
             start += off;
-            --rem;
             thds[n] = std::thread(ph_image_thread, &s[n]);
         }
         for (int i = 0; i < num_threads; ++i) {
@@ -697,45 +716,54 @@ void *ph_video_thread(void *p) {
 
 DP **ph_dct_video_hashes(char *files[], int count, int threads) {
     if (!files || count <= 0)
-        return NULL;
+        return nullptr;
 
-    int num_threads;
-    if (threads > count) {
-        num_threads = count;
-    } else if (threads > 0) {
-        num_threads = threads;
-    } else {
-        num_threads = std::thread::hardware_concurrency();
+    int num_threads = 1;
+    if (count > 1) {
+        num_threads = threads < 0 ? 0 : threads;
+        int max_threads_num = std::thread::hardware_concurrency();
+        if (num_threads == 0 || num_threads > max_threads_num)
+            num_threads = max_threads_num;
+        if (num_threads > count)
+            num_threads = count;
     }
 
     DP **hashes = (DP **)malloc(count * sizeof(DP *));
-
     for (int i = 0; i < count; ++i) {
         hashes[i] = (DP *)malloc(sizeof(DP));
         hashes[i]->id = strdup(files[i]);
     }
 
-    std::thread *thds = new std::thread[num_threads];
-
-    int rem = count % num_threads;
-    int start = 0;
-    int off = 0;
-    slice *s = new slice[num_threads];
-    for (int n = 0; n < num_threads; ++n) {
-        off = (int)floor((count / (float)num_threads) + (rem > 0 ? num_threads - (count % num_threads) : 0));
-
-        s[n].hash_p = &hashes[start];
-        s[n].n = off;
-        s[n].hash_params = NULL;
-        start += off;
-        --rem;
-        thds[n] = std::thread(ph_video_thread, &s[n]);
+    if (num_threads > 1) {
+        std::thread *thds = new std::thread[num_threads];
+        int rem = count % num_threads;
+        int start = 0;
+        int off = 0;
+        slice *s = new slice[num_threads];
+        for (int n = 0; n < num_threads; ++n) {
+            off = count / num_threads;
+            if (rem > 0) {
+                off += 1;
+                --rem;
+            }
+            s[n].hash_p = &hashes[start];
+            s[n].n = off;
+            s[n].hash_params = nullptr;
+            start += off;
+            thds[n] = std::thread(ph_video_thread, &s[n]);
+        }
+        for (int i = 0; i < num_threads; ++i) {
+            thds[i].join();
+        }
+        delete[] s;
+        delete[] thds;
+    } else {
+        slice slice_tmp;
+        slice_tmp.hash_p = &hashes[0];
+        slice_tmp.hash_params = nullptr;
+        slice_tmp.n = count;
+        ph_video_thread(&slice_tmp);
     }
-    for (int i = 0; i < num_threads; ++i) {
-        thds[i].join();
-    }
-    delete[] s;
-    delete[] thds;
 
     return hashes;
 }

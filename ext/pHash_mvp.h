@@ -29,13 +29,6 @@ typedef enum ph_mvp_retcode {
     PH_ERRDISTFUNC,
 } MVPRetCode;
 
-typedef enum ph_hashtype {
-    BYTEARRAY   = 1, /* refers to bitwidth of the hash value */
-    UINT16ARRAY = 2,
-    UINT32ARRAY = 4,
-    UINT64ARRAY = 8,
-} HashType;
-
 /* call back function for mvp tree functions - to performa distance calc.'s*/
 typedef float (*hash_compareCB)(DP *pointA, DP *pointB);
 
@@ -66,15 +59,6 @@ typedef struct ph_mvp_file {
     hash_compareCB hashdist;
 
 } MVPFile;
-
-/* /brief alloc a single data point
- *  allocates path array, does nto set id or path
- */
-DLL_EXPORT DP *ph_malloc_datapoint(HashType type);
-
-/** /brief free a datapoint and its path
- */
-DLL_EXPORT void ph_free_datapoint(DP *dp);
 
 /** /brief read a datapoint (aux function)
  *   /param m current MVPFile struct containing state information

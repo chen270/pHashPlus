@@ -53,22 +53,6 @@ static int ph_selectvantagepoints(MVPFile *m, DP **points, int N, int &sv1_pos, 
     return 0;
 }
 
-DP *ph_malloc_datapoint(HashType type) {
-    DP *dp = (DP *)MALLOC(sizeof(DP));
-    dp->hash = NULL;
-    dp->id = NULL;
-    dp->path = NULL;
-    dp->hash_type = type;
-    return dp;
-}
-
-void ph_free_datapoint(DP *dp) {
-    if (!dp)
-        return;
-    HFREE(dp);
-    return;
-}
-
 DP *ph_read_datapoint(MVPFile *m) {
     DP *dp = NULL;
     uint8_t active;

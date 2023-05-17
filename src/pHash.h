@@ -134,14 +134,19 @@ typedef struct ph_match {
     uint32_t length;    /*length of match between 2 files */
 } TxtMatch;
 
+typedef enum ph_hashtype {
+    BYTEARRAY   = 1, /* refers to bitwidth of the hash value */
+    UINT16ARRAY = 2,
+    UINT32ARRAY = 4,
+    UINT64ARRAY = 8,
+} HashType;
 
 /* /brief alloc a single data point
  *  allocates path array, does nto set id or path
  */
-DLL_EXPORT DP *ph_malloc_datapoint(int hashtype);
+DLL_EXPORT DP *ph_malloc_datapoint(HashType hashtype);
 
 /** /brief free a datapoint and its path
- *
  */
 DLL_EXPORT void ph_free_datapoint(DP *dp);
 
@@ -252,7 +257,8 @@ DLL_EXPORT int _ph_dct_imagehash(const CImg<uint8_t> &img, ulong64 &hash);
 /*! /brief compute multiple dct robust image hashes
  *  /param files  - string array for name of files
  *  /param count  - number of files
- *  /param threads- Number of threads(use c++11 std::thread)
+ *  /param threads- Number of threads(use c++11 std::thread, 
+ *      defalut '0' means to use the max number of concurrent threads supported)
  *  /return - hash array
  */
 DLL_EXPORT DP **ph_dct_image_hashes(char *files[], int count, int threads = 0);
