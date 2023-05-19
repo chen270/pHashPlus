@@ -53,6 +53,14 @@ static int ph_selectvantagepoints(MVPFile *m, DP **points, int N, int &sv1_pos, 
     return 0;
 }
 
+void ph_mvp_init(MVPFile *m) {
+    m->branchfactor = 2;
+    m->pathlength = 5;
+    m->leafcapacity = 40;
+    m->pgsize = (off_t)getpagesize(); /* use host page size */
+    return;
+}
+
 DP *ph_read_datapoint(MVPFile *m) {
     DP *dp = NULL;
     uint8_t active;

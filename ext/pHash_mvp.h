@@ -60,6 +60,9 @@ typedef struct ph_mvp_file {
 
 } MVPFile;
 
+/* convenience function to set var's of mvp tree */
+DLL_EXPORT void ph_mvp_init(MVPFile *m);
+
 /** /brief read a datapoint (aux function)
  *   /param m current MVPFile struct containing state information
  *   /return DP* the read datapoint struct
