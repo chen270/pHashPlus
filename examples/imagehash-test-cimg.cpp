@@ -2,7 +2,9 @@
 #include <iostream>
 #include <chrono>
 
+#ifdef HAVE_PHASH_EXT
 #include "pHash_ext.h"
+#endif
 
 #ifndef RES_DIR_PATH
 #error ResourcesDir path not define! Need Modifiy CMakeLists.txt
@@ -84,13 +86,18 @@ static bool _compare_images_ex(const CImg<uint8_t> &img1,
             break;
         case RADIALHASH:
         {
-            if (img1.width() == img2.width() && img1.height() == img2.height())
+            bool need_normal_compare = true;
+#ifdef HAVE_PHASH_EXT
+            if (img1.width() == img2.width() && img1.height() == img2.height()) {
                 ret = compare_radial_imagehash_ex_samesize(img1, img2);
-            else
-            {
-                d = compare_radial_imagehash_ex(img1, img2); // 官方大于0.85为相似
+                need_normal_compare = false;
+            }
+#endif
+            if (need_normal_compare) {
+                d = compare_radial_imagehash_ex(img1, img2);  // 官方大于0.85为相似
                 printf("ImageMatching-test: RADIALHASH ret = %f\n", d);
-                if (d > 0.85) ret = true;
+                if (d > 0.85)
+                    ret = true;
             }
             break;
         }
