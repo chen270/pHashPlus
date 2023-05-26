@@ -69,13 +69,28 @@ typedef struct ph_file_offset {
     uint8_t fileno;
 } FileIndex;
 
+typedef enum ph_hashdatatype {
+    BYTEARRAY   = 1, /* refers to bitwidth of the hash value */
+    UINT16ARRAY = 2,
+    UINT32ARRAY = 4,
+    UINT64ARRAY = 8,
+} HashDataType;
+
+typedef enum ph_hashtype {
+    TEXT   = 1, /* refers to bitwidth of the hash value */
+    IMAGE  = 2,
+    AUDIO  = 3,
+    VIDEO  = 4,
+} HashType;
+
 /* structure for a single hash */
 typedef struct ph_datapoint {
     char *id;
-    void *hash;
-    float *path;
-    uint32_t hash_length;
-    uint8_t hash_type;
+    void* hash;
+    char *path;
+    uint32_t hash_length; // number of hash
+    HashDataType hash_datatype;
+    HashType hash_type;
 } DP;
 
 typedef struct ph_slice {
@@ -134,21 +149,18 @@ typedef struct ph_match {
     uint32_t length;    /*length of match between 2 files */
 } TxtMatch;
 
-typedef enum ph_hashtype {
-    BYTEARRAY   = 1, /* refers to bitwidth of the hash value */
-    UINT16ARRAY = 2,
-    UINT32ARRAY = 4,
-    UINT64ARRAY = 8,
-} HashType;
-
 /* /brief alloc a single data point
  *  allocates path array, does nto set id or path
  */
-DLL_EXPORT DP *ph_malloc_datapoint(HashType hashtype);
+DLL_EXPORT DP *ph_malloc_datapoint(HashType type, HashDataType datatype);
 
 /** /brief free a datapoint and its path
  */
 DLL_EXPORT void ph_free_datapoint(DP *dp);
+
+/** /brief free a datapoint and its path
+ */
+DLL_EXPORT void ph_free_datapoints(DP **dp, const int nbpoints);
 
 /*! /brief copyright information
  */

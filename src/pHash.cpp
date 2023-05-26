@@ -46,20 +46,39 @@ const char *ph_about() {
     return phash_version;
 }
 
-DP *ph_malloc_datapoint(HashType type) {
-    DP* dp = new DP();
+DP *ph_malloc_datapoint(HashType type, HashDataType datatype) {
+    DP* dp = (DP*)malloc(sizeof(DP));
     dp->hash = nullptr;
     dp->id = nullptr;
     dp->path = nullptr;
-    dp->hash_type = static_cast<uint8_t>(type);
+    dp->hash_datatype = datatype;
+    dp->hash_type = type;
     return dp;
 }
 
 void ph_free_datapoint(DP *dp) {
     if (!dp)
         return;
-    delete dp;
+    free(dp);
+    dp = nullptr;
     return;
+}
+
+void ph_free_datapoints(DP **dp, const int nbpoints) {
+    if (!dp)
+        return;
+    for (int i = 0; i < nbpoints; ++i) {
+        if (dp[i]->id != nullptr)
+            free(dp[i]->id);
+        if (dp[i]->hash != nullptr)
+            free(dp[i]->hash);
+        if (dp[i]->path != nullptr)
+            free(dp[i]->path);
+        free(dp[i]);
+        dp[i] = nullptr;
+    }
+    free(dp);
+    dp = nullptr;
 }
 
 #ifdef HAVE_IMAGE_HASH
@@ -441,7 +460,7 @@ DP **ph_dct_image_hashes(char *files[], int count, int threads) {
 
     DP **hashes = (DP **)malloc(count * sizeof(DP *));
     for (int i = 0; i < count; ++i) {
-        hashes[i] = ph_malloc_datapoint(UINT64ARRAY);
+        hashes[i] = ph_malloc_datapoint(IMAGE, UINT64ARRAY);
         hashes[i]->id = strdup(files[i]);
     }
 
