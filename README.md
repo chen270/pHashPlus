@@ -7,7 +7,7 @@ Features of this project:
 - More simplified, Multi-platform and generic (MinGW, NDK, MSVC, GCC...).
 - Add 4-channel color support, the original project will crash.
 - Fix some bugs in the official pHash project.
-
+- Use sqlite to replace mmap, easy to modify and unify.
 <br/>
 
 Mainly on image hash:
